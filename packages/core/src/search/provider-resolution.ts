@@ -78,6 +78,10 @@ const DEFAULT_DB_ENGINE_UNSUPPORTED_REASON =
 const DEFAULT_EXTERNAL_NOT_CONFIGURED_REASON = "provider not configured or not enabled";
 const DEFAULT_EXTERNAL_NOT_WORKING_REASON =
 	"provider does not expose an FTS engine supported by this runtime";
+const EXTERNAL_ENGINE_NOT_IMPLEMENTED_REASON: Record<Exclude<SearchEngine, "fts5">, string> = {
+	typegraph: "typegraph engine integration is not implemented yet in this runtime",
+	"postgres-lexical": "postgres-lexical external engine integration is not implemented yet",
+};
 
 function backendUnsupported(providerId: string, reason: string): SearchBackendResolution {
 	return {
@@ -280,7 +284,10 @@ function resolveExternalProvider(provider: SearchProviderDescriptor): SearchBack
 	}
 	const selectedEngine = resolved.engine ?? "fts5";
 	if (selectedEngine !== "fts5") {
-		return providerUnavailable(providerId, DEFAULT_EXTERNAL_NOT_WORKING_REASON);
+		return providerUnavailable(
+			providerId,
+			EXTERNAL_ENGINE_NOT_IMPLEMENTED_REASON[selectedEngine] ?? DEFAULT_EXTERNAL_NOT_WORKING_REASON,
+		);
 	}
 	return availableProvider("external", providerId, selectedEngine, resolved.capabilities);
 }

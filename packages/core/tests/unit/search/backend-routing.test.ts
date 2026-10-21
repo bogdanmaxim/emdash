@@ -214,7 +214,7 @@ describe("search backend routing", () => {
 			supportsSearch: false,
 			searchEngine: null,
 			errorCode: "PROVIDER_UNAVAILABLE",
-			unavailableReason: "provider does not expose an FTS engine supported by this runtime",
+			unavailableReason: "typegraph engine integration is not implemented yet in this runtime",
 		});
 	});
 

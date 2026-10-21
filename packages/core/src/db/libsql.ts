@@ -12,7 +12,10 @@ import { DEFAULT_TURSO_REASON } from "../search/provider-reasons.js";
 import type { LibsqlConfig } from "./adapters.js";
 
 function createCapabilityAwareLibsqlDialect(config: LibsqlConfig): Dialect {
-	const isTurso = config.url.startsWith("libsql://");
+	const isTurso =
+		config.url.startsWith("libsql://") ||
+		config.url.startsWith("wss://") ||
+		config.url.startsWith("https://");
 
 	return new (class extends LibsqlDialect {
 		override createAdapter() {
