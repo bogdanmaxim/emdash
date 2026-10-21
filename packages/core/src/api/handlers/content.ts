@@ -7,7 +7,6 @@ import { sql } from "kysely";
 
 import { after } from "../../after.js";
 import type { ContentFieldFilters } from "../../content-list-query.js";
-import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
@@ -761,8 +760,8 @@ async function canUseFtsForListFilter(
 	collection: string,
 	searchColumns: string[],
 ): Promise<boolean> {
-	if (!isSqlite(db)) return false;
 	const ftsManager = new FTSManager(db);
+	if (!ftsManager.isSearchSupported()) return false;
 	const config = await ftsManager.getSearchConfig(collection);
 	if (!config?.enabled) return false;
 	const searchable = new Set(await ftsManager.getSearchableFields(collection));

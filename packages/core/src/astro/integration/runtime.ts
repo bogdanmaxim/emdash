@@ -24,6 +24,7 @@ import type {
 	SettingField,
 } from "../../plugins/types.js";
 import type { RegistryConfigOption } from "../../registry/types.js";
+import type { SearchProviderSelection } from "../../search/provider-resolution.js";
 import type { StorageDescriptor } from "../storage/types.js";
 
 export type { RegistryConfig, RegistryConfigOption } from "../../registry/types.js";
@@ -187,6 +188,8 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	database?: DatabaseDescriptor;
+	/** Full-text-search provider selection. Defaults to the configured database provider. */
+	search?: SearchProviderSelection;
 	/** Core database migration behavior at runtime. Defaults to `auto`. */
 	migrations?: RuntimeMigrationConfig;
 	/**

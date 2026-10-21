@@ -1,0 +1,7 @@
+{
+	"name": "fts-typegraph-demo-cms",
+	"private": true,
+	"type": "module",
+	"version": "0.0.0",
+	"description": "Demo EmDash CMS instance configured with Typegraph FTS bridge plugin"
+}

@@ -94,6 +94,10 @@
       "types": "./dist/db/index.d.mts",
       "default": "./dist/db/index.mjs"
     },
+    "./search/providers": {
+      "types": "./dist/search/providers.d.mts",
+      "default": "./dist/search/providers.mjs"
+    },
     "./db/sqlite": {
       "types": "./dist/db/sqlite.d.mts",
       "default": "./dist/db/sqlite.mjs"

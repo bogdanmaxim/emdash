@@ -15,7 +15,6 @@
 
 import { sql } from "kysely";
 
-import { isSqlite } from "../../database/dialect-helpers.js";
 import { parseTaxonomyCollections } from "../../database/repositories/taxonomy-def.js";
 import { markContentMediaUsageCollectionStale } from "../../media/usage/content-refresh.js";
 import {
@@ -141,15 +140,16 @@ interface SearchTarget {
 
 async function searchTargets(context: ImportContext): Promise<SearchTarget[]> {
 	const targets: SearchTarget[] = [];
+	const ftsManager = new FTSManager(context.db);
 	for (const record of await collections(context)) {
 		const final = applyTransformations(record, context.plan, { fieldColumnTypes: new Map() });
 		const config = final.searchConfig;
 		if (typeof config !== "object" || config === null || Array.isArray(config)) continue;
 		if (config.enabled !== true) continue;
-		if (!isSqlite(context.db)) {
+		if (!ftsManager.isSearchSupported()) {
 			throw new TransferError(
 				"TRANSFER_IMPORT_ERROR",
-				"Full-text search is not available on this target",
+				ftsManager.unsupportedMessage("rebuild full-text search indexes"),
 				{ detail: { kind: "collection", id: record.id } },
 			);
 		}
