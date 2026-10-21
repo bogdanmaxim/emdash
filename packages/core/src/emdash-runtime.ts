@@ -3312,12 +3312,12 @@ export class EmDashRuntime {
 	 * defend against FTS not existing yet (pre-setup).
 	 */
 	async ensureSearchHealthy(): Promise<void> {
-		const ftsManager = new FTSManager(this._db);
-		if (!ftsManager.isSearchSupported()) return;
 		try {
 			await singleFlightCached(
 				this._searchHealthCache,
 				async () => {
+					const ftsManager = new FTSManager(this._db);
+					if (!ftsManager.isSearchSupported()) return;
 					try {
 						const repaired = await ftsManager.verifyAndRepairAll();
 						if (repaired > 0) {
