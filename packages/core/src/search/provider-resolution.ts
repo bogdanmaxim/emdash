@@ -222,10 +222,11 @@ function resolveExternalProvider(provider: SearchProviderDescriptor): SearchBack
 			normalizeReason(provider.unavailableReason, DEFAULT_EXTERNAL_NOT_CONFIGURED_REASON),
 		);
 	}
-	if (provider.engine !== "fts5") {
+	const selectedEngine = provider.engine ?? "fts5";
+	if (selectedEngine !== "fts5") {
 		return providerUnavailable(providerId, DEFAULT_EXTERNAL_NOT_WORKING_REASON);
 	}
-	return availableProvider("external", providerId, "fts5");
+	return availableProvider("external", providerId, selectedEngine);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance

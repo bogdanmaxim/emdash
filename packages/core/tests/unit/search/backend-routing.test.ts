@@ -125,6 +125,23 @@ describe("search backend routing", () => {
 		});
 	});
 
+	it("defaults enabled external providers to fts5 when engine is not specified", () => {
+		expect(
+			resolveSearchBackend(
+				sqliteDb(),
+				externalSearchProvider({
+					id: "external-fts-default",
+					enabled: true,
+				}),
+			),
+		).toEqual({
+			providerSource: "external",
+			providerId: "external-fts-default",
+			supportsSearch: true,
+			searchEngine: "fts5",
+		});
+	});
+
 	it("returns provider-unavailable when external FTS is not configured", () => {
 		expect(
 			resolveSearchBackend(
