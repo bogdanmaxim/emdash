@@ -12,7 +12,7 @@ describe("buildSerializableConfig", () => {
 		const search = externalSearchProvider({
 			id: "external-fts",
 			enabled: true,
-			searchEngine: "fts5",
+			engine: "fts5",
 		});
 		expect(buildSerializableConfig({ search }).search).toEqual(search);
 	});

@@ -24,7 +24,7 @@ import type {
 	SettingField,
 } from "../../plugins/types.js";
 import type { RegistryConfigOption } from "../../registry/types.js";
-import type { SearchProviderSelection } from "../../search/backend.js";
+import type { SearchProviderSelection } from "../../search/provider-resolution.js";
 import type { StorageDescriptor } from "../storage/types.js";
 
 export type { RegistryConfig, RegistryConfigOption } from "../../registry/types.js";

@@ -1,17 +1,82 @@
 import type {
-	DatabaseSearchProviderSelection,
-	ExternalSearchProviderConfig,
-	ExternalSearchProviderSelection,
-} from "./backend.js";
+	SearchEngine,
+	SearchProviderDescriptor,
+	SearchProviderSelection,
+	SearchProviderSchema,
+} from "./provider-resolution.js";
 
-export type { ExternalSearchProviderConfig };
+export interface DatabaseSearchProviderConfig {
+	id?: string;
+	engine?: SearchEngine;
+	enabled?: boolean;
+	unavailableReason?: string;
+	schema?: SearchProviderSchema;
+}
 
-export function databaseSearchProvider(): DatabaseSearchProviderSelection {
-	return { mode: "database" };
+export interface ExternalSearchProviderConfig {
+	id: string;
+	engine?: SearchEngine;
+	enabled?: boolean;
+	unavailableReason?: string;
+	schema?: SearchProviderSchema;
+}
+
+export interface WrappedDatabaseSearchProviderConfig {
+	id: string;
+	engine?: SearchEngine;
+	enabled?: boolean;
+	unavailableReason?: string;
+	schema?: SearchProviderSchema;
+	config?: Record<string, unknown>;
+}
+
+export type { SearchProviderDescriptor };
+
+export function searchProvider(provider: SearchProviderDescriptor): SearchProviderSelection {
+	return { provider };
+}
+
+export function databaseSearchProvider(
+	config: DatabaseSearchProviderConfig = {},
+): SearchProviderSelection {
+	return {
+		provider: {
+			id: config.id ?? "database",
+			source: "database",
+			engine: config.engine,
+			enabled: config.enabled,
+			unavailableReason: config.unavailableReason,
+			schema: config.schema,
+		},
+	};
 }
 
 export function externalSearchProvider(
-	provider: ExternalSearchProviderConfig,
-): ExternalSearchProviderSelection {
-	return { mode: "external", provider };
+	config: ExternalSearchProviderConfig,
+): SearchProviderSelection {
+	return {
+		provider: {
+			id: config.id,
+			source: "external",
+			engine: config.engine,
+			enabled: config.enabled,
+			unavailableReason: config.unavailableReason,
+			schema: config.schema,
+		},
+	};
+}
+
+export function wrapDatabaseSearchProviderAsExternal(
+	config: WrappedDatabaseSearchProviderConfig,
+): SearchProviderSelection {
+	return {
+		provider: {
+			id: config.id,
+			source: "external",
+			engine: config.engine,
+			enabled: config.enabled,
+			unavailableReason: config.unavailableReason,
+			schema: config.schema ?? { name: "wrapped-database-provider", config: config.config },
+		},
+	};
 }

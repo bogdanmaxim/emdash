@@ -16,15 +16,17 @@ function createCapabilityAwareLibsqlDialect(config: LibsqlConfig): Dialect {
 	return new (class extends LibsqlDialect {
 		override createAdapter() {
 			const adapter = super.createAdapter();
-			Object.defineProperty(adapter, "searchBackendProvider", {
-				value: {
-					providerId: isTurso ? "turso" : "libsql",
-					searchEngine: null,
-					available: false,
-					reason: isTurso
-						? "not supported by the Turso backend in this runtime"
-						: "not supported by the libSQL backend in this runtime",
-				},
+			Object.defineProperty(adapter, "searchProviders", {
+				value: [
+					{
+						id: isTurso ? "turso" : "libsql",
+						searchEngines: [],
+						available: false,
+						reason: isTurso
+							? "not supported by the Turso backend in this runtime"
+							: "not supported by the libSQL backend in this runtime",
+					},
+				],
 				enumerable: true,
 				configurable: true,
 				writable: true,

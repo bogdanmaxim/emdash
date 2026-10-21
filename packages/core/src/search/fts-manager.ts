@@ -17,7 +17,7 @@ import {
 	resolveSearchBackend,
 	searchUnsupportedMessage,
 	type SearchBackendResolution,
-} from "./backend.js";
+} from "./provider-resolution.js";
 import { SEARCH_TOKENIZERS } from "./types.js";
 import type { SearchConfig, SearchTokenizer } from "./types.js";
 

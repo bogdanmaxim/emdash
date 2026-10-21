@@ -723,8 +723,10 @@ export {
 	getSearchStats,
 	extractPlainText,
 	extractSearchableFields,
+	searchProvider,
 	databaseSearchProvider,
 	externalSearchProvider,
+	wrapDatabaseSearchProviderAsExternal,
 } from "./search/index.js";
 export type {
 	SearchConfig,
@@ -736,7 +738,14 @@ export type {
 	SuggestOptions,
 	Suggestion,
 	SearchStats,
+	DatabaseSearchProviderConfig,
 	ExternalSearchProviderConfig,
+	WrappedDatabaseSearchProviderConfig,
+	SearchEngine,
+	SearchProviderCapability,
+	SearchProviderDescriptor,
+	SearchProviderSchema,
+	SearchBackendResolution,
 	SearchProviderSelection,
 } from "./search/index.js";
 
