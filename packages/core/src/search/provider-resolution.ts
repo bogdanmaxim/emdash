@@ -164,6 +164,26 @@ function capabilityFromLegacy(
 }
 
 function normalizeAdapterCapabilities(db: Kysely<any>): readonly SearchProviderCapability[] {
+	const adapter = db.getExecutor().adapter as object;
+	const declared = adapter as SearchProviderCapableAdapter;
+	if (declared.searchProviders && declared.searchProviders.length > 0) {
+		return declared.searchProviders;
+	}
+	if (declared.searchBackendProvider) {
+		const capability = declared.searchBackendProvider;
+		return [
+			{
+				id: capability.providerId,
+				searchEngines: capability.searchEngine ? [capability.searchEngine] : [],
+				available: capability.available,
+				reason: capability.reason,
+			},
+		];
+	}
+
+	const legacy = capabilityFromLegacy(declared);
+	if (legacy) return [legacy];
+
 	if (detectDialect(db) === "postgres") {
 		return [
 			{
@@ -189,26 +209,6 @@ function normalizeAdapterCapabilities(db: Kysely<any>): readonly SearchProviderC
 			},
 		];
 	}
-
-	const adapter = db.getExecutor().adapter as object;
-	const declared = adapter as SearchProviderCapableAdapter;
-	if (declared.searchProviders && declared.searchProviders.length > 0) {
-		return declared.searchProviders;
-	}
-	if (declared.searchBackendProvider) {
-		const capability = declared.searchBackendProvider;
-		return [
-			{
-				id: capability.providerId,
-				searchEngines: capability.searchEngine ? [capability.searchEngine] : [],
-				available: capability.available,
-				reason: capability.reason,
-			},
-		];
-	}
-
-	const legacy = capabilityFromLegacy(declared);
-	if (legacy) return [legacy];
 
 	const adapterName = adapter.constructor.name.toLowerCase();
 	if (adapterName.includes("turso")) {
