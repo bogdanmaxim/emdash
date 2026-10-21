@@ -17,6 +17,12 @@ export type {
 	SearchStats,
 } from "./types.js";
 export { SEARCH_TOKENIZERS } from "./types.js";
+export {
+	databaseSearchProvider,
+	externalSearchProvider,
+	type ExternalSearchProviderConfig,
+} from "./providers.js";
+export type { SearchProviderSelection } from "./backend.js";
 
 // FTS Manager
 export { FTSManager } from "./fts-manager.js";

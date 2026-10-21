@@ -6,7 +6,7 @@
  */
 
 import { LibsqlDialect } from "@libsql/kysely-libsql";
-import type { Dialect, SqliteAdapter } from "kysely";
+import type { Dialect } from "kysely";
 
 import type { LibsqlConfig } from "./adapters.js";
 
@@ -14,15 +14,21 @@ function createCapabilityAwareLibsqlDialect(config: LibsqlConfig): Dialect {
 	const isTurso = config.url.startsWith("libsql://");
 
 	return new (class extends LibsqlDialect {
-		override createAdapter(): SqliteAdapter {
-			const adapter = super.createAdapter() as SqliteAdapter & {
-				searchBackendCapability?: "libsql-unsupported" | "turso-unsupported";
-				searchBackendUnsupportedReason?: string;
-			};
-			adapter.searchBackendCapability = isTurso ? "turso-unsupported" : "libsql-unsupported";
-			adapter.searchBackendUnsupportedReason = isTurso
-				? "Full-text search is not available on Turso backends in this runtime"
-				: "Full-text search is not available on libSQL backends in this runtime";
+		override createAdapter() {
+			const adapter = super.createAdapter();
+			Object.defineProperty(adapter, "searchBackendProvider", {
+				value: {
+					providerId: isTurso ? "turso" : "libsql",
+					searchEngine: null,
+					available: false,
+					reason: isTurso
+						? "not supported by the Turso backend in this runtime"
+						: "not supported by the libSQL backend in this runtime",
+				},
+				enumerable: true,
+				configurable: true,
+				writable: true,
+			});
 			return adapter;
 		}
 	})({

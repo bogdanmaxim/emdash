@@ -223,6 +223,7 @@ export function buildImageRemotePatterns(
 export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<string, unknown> {
 	return {
 		database: resolvedConfig.database,
+		search: resolvedConfig.search,
 		migrations: resolvedConfig.migrations,
 		storage: resolvedConfig.storage,
 		auth: resolvedConfig.auth,

@@ -723,6 +723,8 @@ export {
 	getSearchStats,
 	extractPlainText,
 	extractSearchableFields,
+	databaseSearchProvider,
+	externalSearchProvider,
 } from "./search/index.js";
 export type {
 	SearchConfig,
@@ -734,6 +736,8 @@ export type {
 	SuggestOptions,
 	Suggestion,
 	SearchStats,
+	ExternalSearchProviderConfig,
+	SearchProviderSelection,
 } from "./search/index.js";
 
 // Auth types (for platform-specific auth providers and pluggable login methods)

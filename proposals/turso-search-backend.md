@@ -20,14 +20,16 @@ This affects users who deploy EmDash to a libSQL/Turso environment and expect co
 
 ## Proposed behavior
 
-Add backend-aware full-text search support so each database engine chooses the correct index and query strategy.
+Add provider-aware full-text search support so each database engine can expose its own FTS implementation, and users can optionally select an external FTS provider.
 
 The intended runtime behavior is:
 
-- SQLite remains the default FTS5-capable backend and keeps the current implementation.
-- libSQL uses the SQLite FTS5 path by default while the libSQL runtime still supports the FTS5 primitives EmDash relies on.
-- If the target deployment is a newer Turso engine or server product that no longer exposes the same SQLite FTS5 semantics, EmDash should switch to the Turso-native backend instead of assuming FTS5 is available.
-- PostgreSQL is handled through a separate future backend, without changing the collection search API.
+- The database backend may provide a native FTS capability declaration (implemented or unsupported, with a reason).
+- Users can configure the active FTS provider similarly to database provider configuration:
+  - use the database-provided provider (default), or
+  - choose an external provider.
+- `FTSManager` becomes the central orchestrator: it resolves the configured provider, determines whether FTS is active, and returns standardized errors.
+- SQLite FTS5 remains the current implemented engine path; other providers can be added without changing the collection search API.
 
 The collection-level API remains stable: collections keep the same searchable-field metadata and search configuration, while the backend-specific implementation is hidden behind the search manager abstraction.
 
@@ -36,9 +38,11 @@ Important nuance: official libSQL docs and repo guidance still describe libSQL a
 ## Goals
 
 - Support backend-specific full-text search implementations without changing collection schema or public APIs.
+- Support external FTS providers through explicit configuration.
 - Preserve the existing SQLite FTS5 implementation as the reference backend.
-- Allow libSQL/Turso deployments to use collection search when their engine supports the required capabilities.
-- Fail explicitly and clearly when a backend does not support the required full-text index features.
+- Fail explicitly and clearly when:
+  - the selected backend does not support FTS, or
+  - an external provider is not configured or not working.
 - Keep code paths for search configuration, indexing, and query execution isolated by database backend.
 
 ## Non-goals
@@ -46,7 +50,7 @@ Important nuance: official libSQL docs and repo guidance still describe libSQL a
 - Rewriting every content query to use a new shared search abstraction beyond collection search.
 - Implementing PostgreSQL full-text search in this proposal unless required as a compatibility abstraction.
 - Replacing the collection API surface or changing how collections declare searchable fields.
-- Introducing a new public search configuration format without a separate compatibility decision.
+- Changing collection-level search APIs or metadata shape.
 
 ## Interfaces and compatibility
 
@@ -57,7 +61,7 @@ Expected compatibility impact:
 - No change to the public `search()` or `searchCollection()` API.
 - No change to the collection metadata model (`search_config`, `searchable`, etc.).
 - No change to the schema migration contract already used for search configuration.
-- The backend selection logic becomes internal to the search manager and adapter stack.
+- Adds an FTS provider selection configuration (`database` or `external`) exposed in integration config and runtime config.
 
 The only expected compatibility boundary is runtime behavior: if a target backend lacks the required FTS primitives, the system should report a specific unsupported-backend error rather than silently returning empty results or throwing a generic SQLite-only error.
 
@@ -65,9 +69,9 @@ The only expected compatibility boundary is runtime behavior: if a target backen
 
 The implementation must handle these cases explicitly:
 
-- SQLite FTS5 not available or not enabled on a given runtime.
-- libSQL runtime that supports only a subset of SQLite FTS5 features.
-- Turso FTS primitives that differ from SQLite FTS5 functions and tokenizer behavior.
+- Database backend reports FTS unsupported with an explicit reason.
+- External provider is selected but not configured/enabled.
+- External provider is selected but cannot provide a usable engine in this runtime.
 - Search index rebuilds on collections with no searchable fields.
 - Search config changes on a collection whose backend no longer supports the requested tokenizer or ranking primitives.
 - Runtime detection of unsupported search features during the first collection-search request, not only at migration time.
@@ -79,10 +83,12 @@ The code should prefer a clear error message over silent degradation because sil
 Implementation must verify the following:
 
 - SQLite-backed collection search still works with the existing FTS5 implementation.
-- libSQL-backed collection search continues to work when the runtime supports the same FTS5 semantics.
-- Turso-backed collection search routes to Turso-native FTS logic and does not call SQLite FTS5 functions blindly.
+- Database-provider resolution correctly activates/deactivates FTS with explicit reasons.
+- External-provider resolution correctly activates/deactivates FTS with explicit reasons.
 - Collection indexing, reindexing, and suggestion queries continue to return the same data shape to callers.
-- Unsupported backends fail with a deliberate, testable error instead of falling through to SQLite-only logic.
+- Unsupported providers fail with deliberate, testable error categories:
+  - backend does not support FTS
+  - provider not configured or not working
 
 The test plan should cover:
 
@@ -91,15 +97,14 @@ The test plan should cover:
 - search across a content table using the backend-appropriate SQL
 - suggestion queries
 - unsupported-backend guardrails
+- external-provider guardrails
 
 ## Open questions
 
-- Which Turso FTS primitives are available in the runtime target used by EmDash deployments?
-- Should libSQL/Turso support include rough compatibility with the existing SQLite FTS5 API surface, or should the backend-specific query layer diverge more aggressively?
+- Which external providers should be shipped first as first-party adapters?
+- How should non-FTS5 engines map snippet/highlight/ranking behavior to the existing API response shape?
 - For highlight/snippet output, should the API preserve a single normalized response shape even when each backend uses different native highlight functions?
 - Should PostgreSQL support be implemented immediately or kept behind the backend abstraction as a future follow-up?
-- Is the runtime a libSQL fork, a Turso server/engine, or a newer Turso deployment that has moved past SQLite FTS5 compatibility? This should be detected by capability, not by hard-coded version assumptions.
+- Should external providers be loaded via static descriptor imports only, or also support runtime plugin registration?
 
-The strongest implementation guidance is to treat the cutoff as capability-based, not version-based. The public docs we have suggest that libSQL still supports FTS5, while newer Turso engine deployments shifted to a native FTS implementation around 2025-2026. There is no single published libSQL version number that cleanly marks the "stop supporting FTS5" line, so feature detection is the correct strategy.
-
-These questions should be resolved during implementation with explicit backend capability checks and tests, rather than by making assumptions about SQL feature parity.
+Implementation guidance: keep provider selection capability-based and configuration-driven. Avoid hard-coded backend-name routing in manager logic; adapters and external provider descriptors should declare support and reasons directly.

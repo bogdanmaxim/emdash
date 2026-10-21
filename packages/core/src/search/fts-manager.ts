@@ -6,6 +6,7 @@
 
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
+import virtualConfig from "virtual:emdash/config";
 
 import { tableExists as dialectTableExists } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
@@ -85,7 +86,7 @@ export class FTSManager {
 	private readonly backend: SearchBackendResolution;
 
 	constructor(private db: Kysely<Database>) {
-		this.backend = resolveSearchBackendForDatabase(db);
+		this.backend = resolveSearchBackendForDatabase(db, virtualConfig?.search);
 	}
 
 	isSearchSupported(): boolean {

@@ -3,102 +3,188 @@ import type { Kysely } from "kysely";
 import { detectDialect } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 
-export type SearchBackendCapability =
-	| "sqlite-fts5"
-	| "turso-unsupported"
-	| "libsql-unsupported"
-	| "unsupported";
+export type SearchEngine = "fts5";
+
+export interface DatabaseSearchProviderSelection {
+	mode: "database";
+}
+
+export interface ExternalSearchProviderConfig {
+	id: string;
+	searchEngine?: SearchEngine;
+	enabled?: boolean;
+	unavailableReason?: string;
+}
+
+export interface ExternalSearchProviderSelection {
+	mode: "external";
+	provider: ExternalSearchProviderConfig;
+}
+
+export type SearchProviderSelection =
+	| DatabaseSearchProviderSelection
+	| ExternalSearchProviderSelection;
+
+export interface SearchBackendProviderCapability {
+	providerId: string;
+	searchEngine: SearchEngine | null;
+	available: boolean;
+	reason?: string;
+}
 
 interface SearchBackendCapableAdapter {
-	readonly searchBackendCapability?: SearchBackendCapability;
+	readonly searchBackendProvider?: SearchBackendProviderCapability;
+	readonly searchBackendCapability?:
+		| "sqlite-fts5"
+		| "turso-unsupported"
+		| "libsql-unsupported"
+		| "unsupported";
 	readonly searchBackendUnsupportedReason?: string;
 }
 
 export interface SearchBackendResolution {
-	kind:
-		| "sqlite-fts5"
-		| "turso-unsupported"
-		| "libsql-unsupported"
-		| "sqlite-unsupported"
-		| "postgres-unsupported";
+	providerSource: "database" | "external";
+	providerId: string;
 	supportsSearch: boolean;
-	searchEngine: "fts5" | null;
-	unsupportedMessage?: string;
+	searchEngine: SearchEngine | null;
+	errorCode?: "BACKEND_UNSUPPORTED" | "PROVIDER_UNAVAILABLE";
+	unavailableReason?: string;
 }
 
-const POSTGRES_UNSUPPORTED_MESSAGE = "Full-text search is only available on SQLite FTS5 backends";
-const TURSO_UNSUPPORTED_MESSAGE =
-	"Full-text search is not available on Turso backends in this runtime";
-const LIBSQL_UNSUPPORTED_MESSAGE =
-	"Full-text search is not available on libSQL backends in this runtime";
-const SQLITE_UNSUPPORTED_MESSAGE =
-	"Full-text search is not available on this SQLite-compatible backend";
+const DEFAULT_POSTGRES_REASON = "not implemented for Postgres backends in this runtime";
+const DEFAULT_TURSO_REASON = "not supported by the Turso backend in this runtime";
+const DEFAULT_LIBSQL_REASON = "not supported by the libSQL backend in this runtime";
+const DEFAULT_SQLITE_REASON = "not implemented for this SQLite-compatible backend";
 
-const SEARCH_BACKEND_REGISTRY: Record<SearchBackendResolution["kind"], SearchBackendResolution> = {
-	"sqlite-fts5": { kind: "sqlite-fts5", supportsSearch: true, searchEngine: "fts5" },
-	"turso-unsupported": {
-		kind: "turso-unsupported",
-		supportsSearch: false,
-		searchEngine: null,
-		unsupportedMessage: TURSO_UNSUPPORTED_MESSAGE,
-	},
-	"libsql-unsupported": {
-		kind: "libsql-unsupported",
-		supportsSearch: false,
-		searchEngine: null,
-		unsupportedMessage: LIBSQL_UNSUPPORTED_MESSAGE,
-	},
-	"sqlite-unsupported": {
-		kind: "sqlite-unsupported",
-		supportsSearch: false,
-		searchEngine: null,
-		unsupportedMessage: SQLITE_UNSUPPORTED_MESSAGE,
-	},
-	"postgres-unsupported": {
-		kind: "postgres-unsupported",
-		supportsSearch: false,
-		searchEngine: null,
-		unsupportedMessage: POSTGRES_UNSUPPORTED_MESSAGE,
-	},
-};
+const DEFAULT_EXTERNAL_NOT_CONFIGURED_REASON = "provider not configured or not enabled";
+const DEFAULT_EXTERNAL_NOT_WORKING_REASON =
+	"provider does not expose an FTS engine supported by this runtime";
 
-function withReason(
-	kind: SearchBackendResolution["kind"],
-	reason?: string,
+function backendUnsupported(providerId: string, reason: string): SearchBackendResolution {
+	return {
+		providerSource: "database",
+		providerId,
+		supportsSearch: false,
+		searchEngine: null,
+		errorCode: "BACKEND_UNSUPPORTED",
+		unavailableReason: reason,
+	};
+}
+
+function providerUnavailable(providerId: string, reason: string): SearchBackendResolution {
+	return {
+		providerSource: "external",
+		providerId,
+		supportsSearch: false,
+		searchEngine: null,
+		errorCode: "PROVIDER_UNAVAILABLE",
+		unavailableReason: reason,
+	};
+}
+
+function availableProvider(
+	providerSource: SearchBackendResolution["providerSource"],
+	providerId: string,
+	searchEngine: SearchEngine,
 ): SearchBackendResolution {
-	const base = SEARCH_BACKEND_REGISTRY[kind];
-	if (!reason || base.supportsSearch) return base;
-	return { ...base, unsupportedMessage: reason };
+	return {
+		providerSource,
+		providerId,
+		supportsSearch: true,
+		searchEngine,
+	};
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
-export function resolveSearchBackend(db: Kysely<any>): SearchBackendResolution {
+function normalizeReason(reason: string | undefined, fallback: string): string {
+	const trimmed = reason?.trim();
+	return trimmed && trimmed.length > 0 ? trimmed : fallback;
+}
+
+function resolveLegacyCapability(
+	adapter: SearchBackendCapableAdapter,
+): SearchBackendResolution | null {
+	if (adapter.searchBackendCapability === "sqlite-fts5") {
+		return availableProvider("database", "sqlite-fts5", "fts5");
+	}
+	if (adapter.searchBackendCapability === "turso-unsupported") {
+		return backendUnsupported(
+			"turso",
+			normalizeReason(adapter.searchBackendUnsupportedReason, DEFAULT_TURSO_REASON),
+		);
+	}
+	if (adapter.searchBackendCapability === "libsql-unsupported") {
+		return backendUnsupported(
+			"libsql",
+			normalizeReason(adapter.searchBackendUnsupportedReason, DEFAULT_LIBSQL_REASON),
+		);
+	}
+	if (adapter.searchBackendCapability === "unsupported") {
+		return backendUnsupported(
+			"sqlite-compat",
+			normalizeReason(adapter.searchBackendUnsupportedReason, DEFAULT_SQLITE_REASON),
+		);
+	}
+	return null;
+}
+
+function resolveDatabaseProvider(db: Kysely<any>): SearchBackendResolution {
 	if (detectDialect(db) === "postgres") {
-		return SEARCH_BACKEND_REGISTRY["postgres-unsupported"];
+		return backendUnsupported("postgres", DEFAULT_POSTGRES_REASON);
 	}
 
 	const adapter = db.getExecutor().adapter as object;
 	const declared = adapter as SearchBackendCapableAdapter;
-	if (declared.searchBackendCapability === "sqlite-fts5") {
-		return SEARCH_BACKEND_REGISTRY["sqlite-fts5"];
+	if (declared.searchBackendProvider) {
+		const capability = declared.searchBackendProvider;
+		if (capability.available && capability.searchEngine === "fts5") {
+			return availableProvider("database", capability.providerId, "fts5");
+		}
+		return backendUnsupported(
+			capability.providerId,
+			normalizeReason(capability.reason, DEFAULT_SQLITE_REASON),
+		);
 	}
-	if (declared.searchBackendCapability === "turso-unsupported") {
-		return withReason("turso-unsupported", declared.searchBackendUnsupportedReason);
-	}
-	if (declared.searchBackendCapability === "libsql-unsupported") {
-		return withReason("libsql-unsupported", declared.searchBackendUnsupportedReason);
-	}
-	if (declared.searchBackendCapability === "unsupported") {
-		return withReason("sqlite-unsupported", declared.searchBackendUnsupportedReason);
-	}
+
+	const legacy = resolveLegacyCapability(declared);
+	if (legacy) return legacy;
 
 	const adapterName = adapter.constructor.name.toLowerCase();
 	if (adapterName.includes("turso")) {
-		return SEARCH_BACKEND_REGISTRY["turso-unsupported"];
+		return backendUnsupported("turso", DEFAULT_TURSO_REASON);
 	}
-	if (adapterName.includes("libsql")) return SEARCH_BACKEND_REGISTRY["libsql-unsupported"];
+	if (adapterName.includes("libsql")) {
+		return backendUnsupported("libsql", DEFAULT_LIBSQL_REASON);
+	}
 
-	return SEARCH_BACKEND_REGISTRY["sqlite-fts5"];
+	return availableProvider("database", "sqlite-fts5", "fts5");
+}
+
+function resolveExternalProvider(config: ExternalSearchProviderConfig): SearchBackendResolution {
+	const providerId = config.id;
+	if (config.enabled !== true) {
+		return providerUnavailable(
+			providerId,
+			normalizeReason(config.unavailableReason, DEFAULT_EXTERNAL_NOT_CONFIGURED_REASON),
+		);
+	}
+	if (config.searchEngine !== "fts5") {
+		return providerUnavailable(
+			providerId,
+			normalizeReason(config.unavailableReason, DEFAULT_EXTERNAL_NOT_WORKING_REASON),
+		);
+	}
+	return availableProvider("external", providerId, "fts5");
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export function resolveSearchBackend(
+	db: Kysely<any>,
+	selection: SearchProviderSelection = { mode: "database" },
+): SearchBackendResolution {
+	if (selection.mode === "external") {
+		return resolveExternalProvider(selection.provider);
+	}
+	return resolveDatabaseProvider(db);
 }
 
 export function searchUnsupportedMessage(
@@ -108,9 +194,15 @@ export function searchUnsupportedMessage(
 	if (backend.supportsSearch) {
 		return "";
 	}
-	const message =
-		backend.unsupportedMessage ?? "Full-text search is not available on this database backend";
-	return `Cannot ${operation}: ${message}`;
+	const reason = backend.unavailableReason;
+	const reasonSuffix = reason ? ` (${reason})` : "";
+	if (backend.errorCode === "BACKEND_UNSUPPORTED") {
+		return `Cannot ${operation}: full-text search backend does not support FTS${reasonSuffix}`;
+	}
+	if (backend.errorCode === "PROVIDER_UNAVAILABLE") {
+		return `Cannot ${operation}: full-text search provider is not configured or not working${reasonSuffix}`;
+	}
+	return `Cannot ${operation}: full-text search is not available${reasonSuffix}`;
 }
 
 export function isSearchSupported(backend: SearchBackendResolution): boolean {
@@ -118,13 +210,17 @@ export function isSearchSupported(backend: SearchBackendResolution): boolean {
 }
 
 export function usesFts5Engine(backend: SearchBackendResolution): backend is {
-	kind: "sqlite-fts5";
+	providerSource: "database" | "external";
+	providerId: string;
 	supportsSearch: true;
-	searchEngine: "fts5";
+	searchEngine: SearchEngine;
 } {
-	return backend.searchEngine === "fts5";
+	return backend.supportsSearch && backend.searchEngine === "fts5";
 }
 
-export function resolveSearchBackendForDatabase(db: Kysely<Database>): SearchBackendResolution {
-	return resolveSearchBackend(db);
+export function resolveSearchBackendForDatabase(
+	db: Kysely<Database>,
+	selection?: SearchProviderSelection,
+): SearchBackendResolution {
+	return resolveSearchBackend(db, selection);
 }
