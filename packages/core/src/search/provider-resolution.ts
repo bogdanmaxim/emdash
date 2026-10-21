@@ -58,6 +58,7 @@ export interface SearchBackendResolution {
 
 const DEFAULT_POSTGRES_REASON = "not implemented for Postgres backends in this runtime";
 const DEFAULT_SQLITE_REASON = "not implemented for this SQLite-compatible backend";
+const DEFAULT_DB_UNSUPPORTED_REASON = "database backend does not support FTS";
 const DEFAULT_DB_PROVIDER_NOT_FOUND_REASON = "configured database search provider is not available";
 const DEFAULT_DB_ENGINE_UNSUPPORTED_REASON =
 	"configured database provider does not support the requested search engine";
@@ -200,7 +201,10 @@ function resolveDatabaseProvider(
 		);
 	}
 	if (!selected.available) {
-		return backendUnsupported(selected.id, normalizeReason(selected.reason, DEFAULT_SQLITE_REASON));
+		return backendUnsupported(
+			selected.id,
+			normalizeReason(selected.reason, DEFAULT_DB_UNSUPPORTED_REASON),
+		);
 	}
 
 	const selectedEngine = configured?.engine ?? selected.searchEngines[0];

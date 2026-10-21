@@ -76,7 +76,7 @@ export function wrapDatabaseSearchProviderAsExternal(
 			engine: config.engine,
 			enabled: config.enabled,
 			unavailableReason: config.unavailableReason,
-			schema: config.schema ?? { name: "wrapped-database-provider", config: config.config },
+			schema: config.schema ?? { name: config.id, config: config.config },
 		},
 	};
 }
