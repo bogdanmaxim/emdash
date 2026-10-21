@@ -122,7 +122,7 @@ describe("search backend routing", () => {
 		});
 	});
 
-	it("treats adapters without declared capabilities as sqlite defaults", () => {
+	it("fails closed for adapters without declared capabilities", () => {
 		class LibsqlLikeAdapter extends SqliteAdapter {}
 		class LibsqlLikeDialect extends SqliteDialect {
 			override createAdapter(): SqliteAdapter {
@@ -137,10 +137,11 @@ describe("search backend routing", () => {
 			),
 		).toEqual({
 			providerSource: "database",
-			providerId: "sqlite-fts5",
-			supportsSearch: true,
-			searchEngine: "fts5",
-			capabilities: ["text", "ranking", "snippet", "highlights"],
+			providerId: "database",
+			supportsSearch: false,
+			searchEngine: null,
+			errorCode: "BACKEND_UNSUPPORTED",
+			unavailableReason: "database backend does not support FTS",
 		});
 	});
 

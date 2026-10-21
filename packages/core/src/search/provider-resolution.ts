@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { SqliteAdapter, type Kysely } from "kysely";
 
 import { detectDialect } from "../database/dialect-helpers.js";
 import { DEFAULT_LIBSQL_REASON, DEFAULT_TURSO_REASON } from "./provider-reasons.js";
@@ -211,12 +211,23 @@ function normalizeAdapterCapabilities(db: Kysely<any>): readonly SearchProviderC
 		];
 	}
 
+	if (adapter instanceof SqliteAdapter && adapter.constructor === SqliteAdapter) {
+		return [
+			{
+				id: "sqlite-fts5",
+				searchEngines: ["fts5"],
+				available: true,
+				capabilities: ["text", "ranking", "snippet", "highlights"],
+			},
+		];
+	}
+
 	return [
 		{
-			id: "sqlite-fts5",
-			searchEngines: ["fts5"],
-			available: true,
-			capabilities: ["text", "ranking", "snippet", "highlights"],
+			id: "database",
+			searchEngines: [],
+			available: false,
+			reason: DEFAULT_DB_UNSUPPORTED_REASON,
 		},
 	];
 }
