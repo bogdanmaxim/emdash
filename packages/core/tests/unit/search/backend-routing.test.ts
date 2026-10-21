@@ -122,7 +122,7 @@ describe("search backend routing", () => {
 		});
 	});
 
-	it("routes libSQL-like adapter class names to backend-unsupported", () => {
+	it("treats adapters without declared capabilities as sqlite defaults", () => {
 		class LibsqlLikeAdapter extends SqliteAdapter {}
 		class LibsqlLikeDialect extends SqliteDialect {
 			override createAdapter(): SqliteAdapter {
@@ -137,11 +137,10 @@ describe("search backend routing", () => {
 			),
 		).toEqual({
 			providerSource: "database",
-			providerId: "libsql",
-			supportsSearch: false,
-			searchEngine: null,
-			errorCode: "BACKEND_UNSUPPORTED",
-			unavailableReason: "not supported by the libSQL backend in this runtime",
+			providerId: "sqlite-fts5",
+			supportsSearch: true,
+			searchEngine: "fts5",
+			capabilities: ["text", "ranking", "snippet", "highlights"],
 		});
 	});
 

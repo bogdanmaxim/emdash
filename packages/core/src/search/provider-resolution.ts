@@ -163,6 +163,7 @@ function capabilityFromLegacy(
 	return null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 function normalizeAdapterCapabilities(db: Kysely<any>): readonly SearchProviderCapability[] {
 	const adapter = db.getExecutor().adapter as object;
 	const declared = adapter as SearchProviderCapableAdapter;
@@ -210,14 +211,6 @@ function normalizeAdapterCapabilities(db: Kysely<any>): readonly SearchProviderC
 		];
 	}
 
-	const adapterName = adapter.constructor.name.toLowerCase();
-	if (adapterName.includes("turso")) {
-		return [{ id: "turso", searchEngines: [], available: false, reason: DEFAULT_TURSO_REASON }];
-	}
-	if (adapterName.includes("libsql")) {
-		return [{ id: "libsql", searchEngines: [], available: false, reason: DEFAULT_LIBSQL_REASON }];
-	}
-
 	return [
 		{
 			id: "sqlite-fts5",
@@ -228,6 +221,7 @@ function normalizeAdapterCapabilities(db: Kysely<any>): readonly SearchProviderC
 	];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 function resolveDatabaseProvider(
 	db: Kysely<any>,
 	selection?: SearchProviderSelection,
