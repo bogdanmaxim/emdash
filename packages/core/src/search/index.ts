@@ -21,6 +21,11 @@ export {
 	searchProvider,
 	databaseSearchProvider,
 	externalSearchProvider,
+	getRegisteredSearchProvider,
+	listRegisteredSearchProviders,
+	registerSearchProvider,
+	registerSearchProviders,
+	unregisterSearchProvider,
 	wrapDatabaseSearchProviderAsExternal,
 	type DatabaseSearchProviderConfig,
 	type ExternalSearchProviderConfig,
@@ -28,6 +33,7 @@ export {
 } from "./providers.js";
 export type {
 	SearchBackendResolution,
+	SearchCapability,
 	SearchEngine,
 	SearchProviderCapability,
 	SearchProviderDescriptor,

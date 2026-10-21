@@ -68,6 +68,10 @@ export interface SearchResult {
 	collection: string;
 	/** Entry ID */
 	id: string;
+	/** Entity type for normalized multi-provider contracts. */
+	entityType?: string;
+	/** Primary text payload for normalized non-FTS5 providers. */
+	text?: string;
 	/** Entry slug */
 	slug: string | null;
 	/** Content locale */
@@ -83,8 +87,14 @@ export interface SearchResult {
 	 * (the only HTML the snippet is allowed to contain).
 	 */
 	snippet?: string;
+	/** Optional provider-normalized highlight segments. */
+	highlights?: string[];
+	/** Optional graph/entity references returned by external providers. */
+	references?: Array<{ id: string; entityType: string }>;
 	/** Relevance score (higher = more relevant) */
 	score: number;
+	/** Provider-normalized ranking score alias. */
+	ranking?: number;
 }
 
 /**

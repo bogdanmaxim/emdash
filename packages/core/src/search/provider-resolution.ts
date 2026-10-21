@@ -2,8 +2,17 @@ import type { Kysely } from "kysely";
 
 import { detectDialect } from "../database/dialect-helpers.js";
 import { DEFAULT_LIBSQL_REASON, DEFAULT_TURSO_REASON } from "./provider-reasons.js";
+import { getRegisteredSearchProvider } from "./providers.js";
 
-export type SearchEngine = "fts5";
+export type SearchEngine = "fts5" | "typegraph" | "postgres-lexical";
+export type SearchCapability =
+	| "text"
+	| "ranking"
+	| "snippet"
+	| "highlights"
+	| "references"
+	| "vector"
+	| "graph";
 
 export interface SearchProviderSchema {
 	readonly name: string;
@@ -16,6 +25,7 @@ export interface SearchProviderCapability {
 	readonly available: boolean;
 	readonly reason?: string;
 	readonly schema?: SearchProviderSchema;
+	readonly capabilities?: readonly SearchCapability[];
 }
 
 export interface SearchProviderDescriptor {
@@ -25,6 +35,7 @@ export interface SearchProviderDescriptor {
 	readonly engine?: SearchEngine;
 	readonly unavailableReason?: string;
 	readonly schema?: SearchProviderSchema;
+	readonly capabilities?: readonly SearchCapability[];
 }
 
 export interface SearchProviderSelection {
@@ -52,6 +63,7 @@ export interface SearchBackendResolution {
 	providerId: string;
 	supportsSearch: boolean;
 	searchEngine: SearchEngine | null;
+	capabilities?: readonly SearchCapability[];
 	errorCode?: "BACKEND_UNSUPPORTED" | "PROVIDER_UNAVAILABLE";
 	unavailableReason?: string;
 }
@@ -93,12 +105,14 @@ function availableProvider(
 	providerSource: SearchBackendResolution["providerSource"],
 	providerId: string,
 	searchEngine: SearchEngine,
+	capabilities?: readonly SearchCapability[],
 ): SearchBackendResolution {
 	return {
 		providerSource,
 		providerId,
 		supportsSearch: true,
 		searchEngine,
+		capabilities,
 	};
 }
 
@@ -111,7 +125,12 @@ function capabilityFromLegacy(
 	adapter: SearchProviderCapableAdapter,
 ): SearchProviderCapability | null {
 	if (adapter.searchBackendCapability === "sqlite-fts5") {
-		return { id: "sqlite-fts5", searchEngines: ["fts5"], available: true };
+		return {
+			id: "sqlite-fts5",
+			searchEngines: ["fts5"],
+			available: true,
+			capabilities: ["text", "ranking", "snippet", "highlights"],
+		};
 	}
 	if (adapter.searchBackendCapability === "turso-unsupported") {
 		return {
@@ -144,10 +163,25 @@ function normalizeAdapterCapabilities(db: Kysely<any>): readonly SearchProviderC
 	if (detectDialect(db) === "postgres") {
 		return [
 			{
-				id: "postgres",
-				searchEngines: [],
+				id: "postgres-lexical",
+				searchEngines: ["postgres-lexical"],
 				available: false,
 				reason: DEFAULT_POSTGRES_REASON,
+				capabilities: ["text", "ranking", "snippet", "highlights"],
+			},
+			{
+				id: "postgres-vector",
+				searchEngines: [],
+				available: false,
+				reason: "vector search support is under research",
+				capabilities: ["text", "ranking", "vector"],
+			},
+			{
+				id: "postgres-graph",
+				searchEngines: [],
+				available: false,
+				reason: "graph search support is under research",
+				capabilities: ["text", "ranking", "graph", "references"],
 			},
 		];
 	}
@@ -180,7 +214,14 @@ function normalizeAdapterCapabilities(db: Kysely<any>): readonly SearchProviderC
 		return [{ id: "libsql", searchEngines: [], available: false, reason: DEFAULT_LIBSQL_REASON }];
 	}
 
-	return [{ id: "sqlite-fts5", searchEngines: ["fts5"], available: true }];
+	return [
+		{
+			id: "sqlite-fts5",
+			searchEngines: ["fts5"],
+			available: true,
+			capabilities: ["text", "ranking", "snippet", "highlights"],
+		},
+	];
 }
 
 function resolveDatabaseProvider(
@@ -211,22 +252,37 @@ function resolveDatabaseProvider(
 	if (!selectedEngine || !selected.searchEngines.includes(selectedEngine)) {
 		return backendUnsupported(selected.id, DEFAULT_DB_ENGINE_UNSUPPORTED_REASON);
 	}
-	return availableProvider("database", selected.id, selectedEngine);
+	return availableProvider("database", selected.id, selectedEngine, selected.capabilities);
+}
+
+function resolveExternalProviderDescriptor(
+	provider: SearchProviderDescriptor,
+): SearchProviderDescriptor {
+	const registered = getRegisteredSearchProvider(provider.id);
+	if (!registered) return provider;
+	return {
+		...registered,
+		...provider,
+		schema: provider.schema ?? registered.schema,
+		capabilities: provider.capabilities ?? registered.capabilities,
+		engine: provider.engine ?? registered.engine,
+	};
 }
 
 function resolveExternalProvider(provider: SearchProviderDescriptor): SearchBackendResolution {
-	const providerId = provider.id;
-	if (provider.enabled !== true) {
+	const resolved = resolveExternalProviderDescriptor(provider);
+	const providerId = resolved.id;
+	if (resolved.enabled !== true) {
 		return providerUnavailable(
 			providerId,
-			normalizeReason(provider.unavailableReason, DEFAULT_EXTERNAL_NOT_CONFIGURED_REASON),
+			normalizeReason(resolved.unavailableReason, DEFAULT_EXTERNAL_NOT_CONFIGURED_REASON),
 		);
 	}
-	const selectedEngine = provider.engine ?? "fts5";
+	const selectedEngine = resolved.engine ?? "fts5";
 	if (selectedEngine !== "fts5") {
 		return providerUnavailable(providerId, DEFAULT_EXTERNAL_NOT_WORKING_REASON);
 	}
-	return availableProvider("external", providerId, selectedEngine);
+	return availableProvider("external", providerId, selectedEngine, resolved.capabilities);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance

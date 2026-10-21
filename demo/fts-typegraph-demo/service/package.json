@@ -1,0 +1,7 @@
+{
+	"name": "fts-typegraph-demo-service",
+	"private": true,
+	"type": "module",
+	"version": "0.0.0",
+	"description": "Demo service for external Typegraph-backed FTS provider"
+}

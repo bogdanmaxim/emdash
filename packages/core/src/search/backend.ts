@@ -1,5 +1,6 @@
 export type {
 	SearchBackendResolution,
+	SearchCapability,
 	SearchEngine,
 	SearchProviderCapability,
 	SearchProviderDescriptor,

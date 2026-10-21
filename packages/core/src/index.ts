@@ -726,6 +726,11 @@ export {
 	searchProvider,
 	databaseSearchProvider,
 	externalSearchProvider,
+	getRegisteredSearchProvider,
+	listRegisteredSearchProviders,
+	registerSearchProvider,
+	registerSearchProviders,
+	unregisterSearchProvider,
 	wrapDatabaseSearchProviderAsExternal,
 } from "./search/index.js";
 export type {
@@ -742,6 +747,7 @@ export type {
 	ExternalSearchProviderConfig,
 	WrappedDatabaseSearchProviderConfig,
 	SearchEngine,
+	SearchCapability,
 	SearchProviderCapability,
 	SearchProviderDescriptor,
 	SearchProviderSchema,

@@ -11,6 +11,10 @@ import type { SearchProviderCapability } from "../../../src/search/provider-reso
 import {
 	databaseSearchProvider,
 	externalSearchProvider,
+	getRegisteredSearchProvider,
+	listRegisteredSearchProviders,
+	registerSearchProvider,
+	unregisterSearchProvider,
 	wrapDatabaseSearchProviderAsExternal,
 } from "../../../src/search/providers.js";
 
@@ -50,6 +54,7 @@ describe("search backend routing", () => {
 			providerId: "sqlite-fts5",
 			supportsSearch: true,
 			searchEngine: "fts5",
+			capabilities: ["text", "ranking", "snippet", "highlights"],
 		});
 	});
 
@@ -64,6 +69,39 @@ describe("search backend routing", () => {
 			supportsSearch: true,
 			searchEngine: "fts5",
 		});
+	});
+
+	it("supports runtime-registered external providers", () => {
+		unregisterSearchProvider("runtime-typegraph");
+		registerSearchProvider({
+			id: "runtime-typegraph",
+			source: "external",
+			enabled: true,
+			engine: "fts5",
+			capabilities: ["text", "ranking", "references"],
+			schema: { name: "typegraph", config: { endpoint: "http://localhost:9000" } },
+		});
+		expect(
+			resolveSearchBackend(
+				sqliteDb(),
+				externalSearchProvider({
+					id: "runtime-typegraph",
+					enabled: true,
+				}),
+			),
+		).toEqual({
+			providerSource: "external",
+			providerId: "runtime-typegraph",
+			supportsSearch: true,
+			searchEngine: "fts5",
+			capabilities: ["text", "ranking", "references"],
+		});
+		expect(getRegisteredSearchProvider("runtime-typegraph")).toBeDefined();
+		expect(
+			listRegisteredSearchProviders().some((provider) => provider.id === "runtime-typegraph"),
+		).toBe(true);
+		unregisterSearchProvider("runtime-typegraph");
+		expect(getRegisteredSearchProvider("runtime-typegraph")).toBeUndefined();
 	});
 
 	it("routes adapters that declare Turso capability to backend-unsupported", () => {
@@ -157,6 +195,26 @@ describe("search backend routing", () => {
 			searchEngine: null,
 			errorCode: "PROVIDER_UNAVAILABLE",
 			unavailableReason: "provider not configured or not enabled",
+		});
+	});
+
+	it("returns provider-unavailable for unsupported non-fts5 external engines", () => {
+		expect(
+			resolveSearchBackend(
+				sqliteDb(),
+				externalSearchProvider({
+					id: "external-typegraph",
+					enabled: true,
+					engine: "typegraph",
+				}),
+			),
+		).toEqual({
+			providerSource: "external",
+			providerId: "external-typegraph",
+			supportsSearch: false,
+			searchEngine: null,
+			errorCode: "PROVIDER_UNAVAILABLE",
+			unavailableReason: "provider does not expose an FTS engine supported by this runtime",
 		});
 	});
 

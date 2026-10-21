@@ -32,8 +32,32 @@ export interface WrappedDatabaseSearchProviderConfig {
 
 export type { SearchProviderDescriptor };
 
+const runtimeSearchProviders = new Map<string, SearchProviderDescriptor>();
+
 export function searchProvider(provider: SearchProviderDescriptor): SearchProviderSelection {
 	return { provider };
+}
+
+export function registerSearchProvider(provider: SearchProviderDescriptor): void {
+	runtimeSearchProviders.set(provider.id, provider);
+}
+
+export function registerSearchProviders(providers: readonly SearchProviderDescriptor[]): void {
+	for (const provider of providers) {
+		registerSearchProvider(provider);
+	}
+}
+
+export function unregisterSearchProvider(id: string): void {
+	runtimeSearchProviders.delete(id);
+}
+
+export function getRegisteredSearchProvider(id: string): SearchProviderDescriptor | undefined {
+	return runtimeSearchProviders.get(id);
+}
+
+export function listRegisteredSearchProviders(): SearchProviderDescriptor[] {
+	return [...runtimeSearchProviders.values()];
 }
 
 export function databaseSearchProvider(
