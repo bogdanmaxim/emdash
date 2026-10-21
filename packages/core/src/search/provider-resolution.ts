@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 
 import { detectDialect } from "../database/dialect-helpers.js";
+import { DEFAULT_LIBSQL_REASON, DEFAULT_TURSO_REASON } from "./provider-reasons.js";
 
 export type SearchEngine = "fts5";
 
@@ -56,8 +57,6 @@ export interface SearchBackendResolution {
 }
 
 const DEFAULT_POSTGRES_REASON = "not implemented for Postgres backends in this runtime";
-const DEFAULT_TURSO_REASON = "not supported by the Turso backend in this runtime";
-const DEFAULT_LIBSQL_REASON = "not supported by the libSQL backend in this runtime";
 const DEFAULT_SQLITE_REASON = "not implemented for this SQLite-compatible backend";
 const DEFAULT_DB_PROVIDER_NOT_FOUND_REASON = "configured database search provider is not available";
 const DEFAULT_DB_ENGINE_UNSUPPORTED_REASON =
@@ -220,10 +219,7 @@ function resolveExternalProvider(provider: SearchProviderDescriptor): SearchBack
 		);
 	}
 	if (provider.engine !== "fts5") {
-		return providerUnavailable(
-			providerId,
-			normalizeReason(provider.unavailableReason, DEFAULT_EXTERNAL_NOT_WORKING_REASON),
-		);
+		return providerUnavailable(providerId, DEFAULT_EXTERNAL_NOT_WORKING_REASON);
 	}
 	return availableProvider("external", providerId, "fts5");
 }

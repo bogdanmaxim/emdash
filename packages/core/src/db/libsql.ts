@@ -9,6 +9,7 @@ import { LibsqlDialect } from "@libsql/kysely-libsql";
 import type { Dialect } from "kysely";
 
 import type { LibsqlConfig } from "./adapters.js";
+import { DEFAULT_LIBSQL_REASON, DEFAULT_TURSO_REASON } from "../search/provider-reasons.js";
 
 function createCapabilityAwareLibsqlDialect(config: LibsqlConfig): Dialect {
 	const isTurso = config.url.startsWith("libsql://");
@@ -22,9 +23,7 @@ function createCapabilityAwareLibsqlDialect(config: LibsqlConfig): Dialect {
 						id: isTurso ? "turso" : "libsql",
 						searchEngines: [],
 						available: false,
-						reason: isTurso
-							? "not supported by the Turso backend in this runtime"
-							: "not supported by the libSQL backend in this runtime",
+						reason: isTurso ? DEFAULT_TURSO_REASON : DEFAULT_LIBSQL_REASON,
 					},
 				],
 				enumerable: true,
