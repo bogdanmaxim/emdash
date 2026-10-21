@@ -25,11 +25,13 @@ Add backend-aware full-text search support so each database engine chooses the c
 The intended runtime behavior is:
 
 - SQLite remains the default FTS5-capable backend and keeps the current implementation.
-- libSQL uses the SQLite FTS5 path only when the runtime supports the same FTS primitives used by EmDash.
-- Turso uses a Turso-native FTS strategy instead of assuming SQLite FTS5 semantics.
+- libSQL uses the SQLite FTS5 path by default while the libSQL runtime still supports the FTS5 primitives EmDash relies on.
+- If the target deployment is a newer Turso engine or server product that no longer exposes the same SQLite FTS5 semantics, EmDash should switch to the Turso-native backend instead of assuming FTS5 is available.
 - PostgreSQL is handled through a separate future backend, without changing the collection search API.
 
 The collection-level API remains stable: collections keep the same searchable-field metadata and search configuration, while the backend-specific implementation is hidden behind the search manager abstraction.
+
+Important nuance: official libSQL docs and repo guidance still describe libSQL as a SQLite-compatible fork with FTS5 support, while the Turso Database product moved to a separate native FTS implementation in newer server/engine versions. This means the correct decision is capability-based, not a blanket "all libSQL equals SQLite" rule. We should default to the FTS5 path for libSQL when present, but allow the engine to opt into the newer Turso backend when the runtime no longer exposes the legacy SQLite FTS5 features.
 
 ## Goals
 
@@ -96,5 +98,8 @@ The test plan should cover:
 - Should libSQL/Turso support include rough compatibility with the existing SQLite FTS5 API surface, or should the backend-specific query layer diverge more aggressively?
 - For highlight/snippet output, should the API preserve a single normalized response shape even when each backend uses different native highlight functions?
 - Should PostgreSQL support be implemented immediately or kept behind the backend abstraction as a future follow-up?
+- Is the runtime a libSQL fork, a Turso server/engine, or a newer Turso deployment that has moved past SQLite FTS5 compatibility? This should be detected by capability, not by hard-coded version assumptions.
+
+The strongest implementation guidance is to treat the cutoff as capability-based, not version-based. The public docs we have suggest that libSQL still supports FTS5, while newer Turso engine deployments shifted to a native FTS implementation around 2025-2026. There is no single published libSQL version number that cleanly marks the "stop supporting FTS5" line, so feature detection is the correct strategy.
 
 These questions should be resolved during implementation with explicit backend capability checks and tests, rather than by making assumptions about SQL feature parity.
