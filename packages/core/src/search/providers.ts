@@ -32,14 +32,23 @@ export interface WrappedDatabaseSearchProviderConfig {
 
 export type { SearchProviderDescriptor };
 
-const runtimeSearchProviders = new Map<string, SearchProviderDescriptor>();
+const RUNTIME_SEARCH_PROVIDER_REGISTRY_KEY = Symbol.for("emdash:runtimeSearchProviders");
+
+function runtimeSearchProviderRegistry(): Map<string, SearchProviderDescriptor> {
+	const holder = globalThis as Record<symbol, Map<string, SearchProviderDescriptor> | undefined>;
+	const existing = holder[RUNTIME_SEARCH_PROVIDER_REGISTRY_KEY];
+	if (existing) return existing;
+	const created = new Map<string, SearchProviderDescriptor>();
+	holder[RUNTIME_SEARCH_PROVIDER_REGISTRY_KEY] = created;
+	return created;
+}
 
 export function searchProvider(provider: SearchProviderDescriptor): SearchProviderSelection {
 	return { provider };
 }
 
 export function registerSearchProvider(provider: SearchProviderDescriptor): void {
-	runtimeSearchProviders.set(provider.id, provider);
+	runtimeSearchProviderRegistry().set(provider.id, provider);
 }
 
 export function registerSearchProviders(providers: readonly SearchProviderDescriptor[]): void {
@@ -49,15 +58,15 @@ export function registerSearchProviders(providers: readonly SearchProviderDescri
 }
 
 export function unregisterSearchProvider(id: string): void {
-	runtimeSearchProviders.delete(id);
+	runtimeSearchProviderRegistry().delete(id);
 }
 
 export function getRegisteredSearchProvider(id: string): SearchProviderDescriptor | undefined {
-	return runtimeSearchProviders.get(id);
+	return runtimeSearchProviderRegistry().get(id);
 }
 
 export function listRegisteredSearchProviders(): SearchProviderDescriptor[] {
-	return [...runtimeSearchProviders.values()];
+	return [...runtimeSearchProviderRegistry().values()];
 }
 
 export function databaseSearchProvider(

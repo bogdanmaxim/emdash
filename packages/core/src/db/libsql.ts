@@ -29,8 +29,9 @@ function createCapabilityAwareLibsqlDialect(config: LibsqlConfig): Dialect {
 							},
 							{
 								id: "sqlite-fts5",
-								searchEngines: ["fts5"],
-								available: true,
+								searchEngines: [],
+								available: false,
+								reason: DEFAULT_TURSO_REASON,
 								capabilities: ["text", "ranking", "snippet", "highlights"],
 							},
 						]
