@@ -13,7 +13,6 @@ export interface ExternalSearchProviderConfig {
 	searchEngine?: SearchEngine;
 	enabled?: boolean;
 	unavailableReason?: string;
-	engineUnavailableReason?: string;
 }
 
 export interface ExternalSearchProviderSelection {
@@ -170,7 +169,7 @@ function resolveExternalProvider(config: ExternalSearchProviderConfig): SearchBa
 	if (config.searchEngine !== "fts5") {
 		return providerUnavailable(
 			providerId,
-			normalizeReason(config.engineUnavailableReason, DEFAULT_EXTERNAL_NOT_WORKING_REASON),
+			normalizeReason(config.unavailableReason, DEFAULT_EXTERNAL_NOT_WORKING_REASON),
 		);
 	}
 	return availableProvider("external", providerId, "fts5");
