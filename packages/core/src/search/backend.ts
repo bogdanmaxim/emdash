@@ -1,7 +1,6 @@
 import type { Kysely } from "kysely";
 
 import { detectDialect } from "../database/dialect-helpers.js";
-import type { Database } from "../database/types.js";
 
 export type SearchEngine = "fts5";
 
@@ -14,6 +13,7 @@ export interface ExternalSearchProviderConfig {
 	searchEngine?: SearchEngine;
 	enabled?: boolean;
 	unavailableReason?: string;
+	engineUnavailableReason?: string;
 }
 
 export interface ExternalSearchProviderSelection {
@@ -170,7 +170,7 @@ function resolveExternalProvider(config: ExternalSearchProviderConfig): SearchBa
 	if (config.searchEngine !== "fts5") {
 		return providerUnavailable(
 			providerId,
-			normalizeReason(config.unavailableReason, DEFAULT_EXTERNAL_NOT_WORKING_REASON),
+			normalizeReason(config.engineUnavailableReason, DEFAULT_EXTERNAL_NOT_WORKING_REASON),
 		);
 	}
 	return availableProvider("external", providerId, "fts5");
@@ -216,11 +216,4 @@ export function usesFts5Engine(backend: SearchBackendResolution): backend is {
 	searchEngine: SearchEngine;
 } {
 	return backend.supportsSearch && backend.searchEngine === "fts5";
-}
-
-export function resolveSearchBackendForDatabase(
-	db: Kysely<Database>,
-	selection?: SearchProviderSelection,
-): SearchBackendResolution {
-	return resolveSearchBackend(db, selection);
 }

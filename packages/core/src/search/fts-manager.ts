@@ -14,7 +14,7 @@ import { validateIdentifier } from "../database/validate.js";
 import { isStoragelessFieldRow } from "../schema/types.js";
 import {
 	isSearchSupported,
-	resolveSearchBackendForDatabase,
+	resolveSearchBackend,
 	searchUnsupportedMessage,
 	type SearchBackendResolution,
 } from "./backend.js";
@@ -86,7 +86,7 @@ export class FTSManager {
 	private readonly backend: SearchBackendResolution;
 
 	constructor(private db: Kysely<Database>) {
-		this.backend = resolveSearchBackendForDatabase(db, virtualConfig?.search);
+		this.backend = resolveSearchBackend(db, virtualConfig?.search);
 	}
 
 	isSearchSupported(): boolean {
