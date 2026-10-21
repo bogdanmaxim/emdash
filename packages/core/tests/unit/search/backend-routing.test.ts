@@ -71,6 +71,18 @@ describe("search backend routing", () => {
 		});
 	});
 
+	it("fails closed when configured database provider id is missing", () => {
+		const db = sqliteDbWithProviders([{ id: "libsql", available: true, searchEngines: ["fts5"] }]);
+		expect(resolveSearchBackend(db, databaseSearchProvider({ id: "sqlite-fts5" }))).toEqual({
+			providerSource: "database",
+			providerId: "sqlite-fts5",
+			supportsSearch: false,
+			searchEngine: null,
+			errorCode: "BACKEND_UNSUPPORTED",
+			unavailableReason: "configured database search provider is not available",
+		});
+	});
+
 	it("supports runtime-registered external providers", () => {
 		unregisterSearchProvider("runtime-typegraph");
 		registerSearchProvider({
