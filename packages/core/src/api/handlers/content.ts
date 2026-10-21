@@ -761,7 +761,7 @@ async function canUseFtsForListFilter(
 	searchColumns: string[],
 ): Promise<boolean> {
 	const ftsManager = new FTSManager(db);
-	if (!ftsManager.supportsFts5()) return false;
+	if (!ftsManager.isSearchSupported()) return false;
 	const config = await ftsManager.getSearchConfig(collection);
 	if (!config?.enabled) return false;
 	const searchable = new Set(await ftsManager.getSearchableFields(collection));

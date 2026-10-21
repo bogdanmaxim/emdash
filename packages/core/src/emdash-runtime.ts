@@ -3313,7 +3313,7 @@ export class EmDashRuntime {
 	 */
 	async ensureSearchHealthy(): Promise<void> {
 		const ftsManager = new FTSManager(this._db);
-		if (!ftsManager.supportsFts5()) return;
+		if (!ftsManager.isSearchSupported()) return;
 		try {
 			await singleFlightCached(
 				this._searchHealthCache,

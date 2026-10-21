@@ -12,7 +12,7 @@ import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { isStoragelessFieldRow } from "../schema/types.js";
 import {
-	isFts5SearchBackend,
+	isSearchSupported,
 	resolveSearchBackendForDatabase,
 	searchUnsupportedMessage,
 	type SearchBackendResolution,
@@ -88,8 +88,8 @@ export class FTSManager {
 		this.backend = resolveSearchBackendForDatabase(db);
 	}
 
-	supportsFts5(): boolean {
-		return isFts5SearchBackend(this.backend);
+	isSearchSupported(): boolean {
+		return isSearchSupported(this.backend);
 	}
 
 	unsupportedMessage(operation = "use full-text search"): string {
@@ -150,7 +150,7 @@ export class FTSManager {
 		tokenize?: SearchTokenizer,
 	): Promise<void> {
 		const tokenizer = resolveSearchTokenizer(tokenize);
-		if (!this.supportsFts5()) return;
+		if (!this.isSearchSupported()) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
@@ -336,7 +336,7 @@ export class FTSManager {
 	 * Drop the FTS table and triggers for a collection
 	 */
 	async dropFtsTable(collectionSlug: string): Promise<void> {
-		if (!this.supportsFts5()) return;
+		if (!this.isSearchSupported()) return;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
@@ -359,7 +359,7 @@ export class FTSManager {
 		tokenize?: SearchTokenizer,
 	): Promise<void> {
 		resolveSearchTokenizer(tokenize);
-		if (!this.supportsFts5()) return;
+		if (!this.isSearchSupported()) return;
 		// Drop existing table and triggers
 		await this.dropFtsTable(collectionSlug);
 
@@ -377,7 +377,7 @@ export class FTSManager {
 	 * per isolate) converges instead of failing on the rowid constraint.
 	 */
 	async populateFromContent(collectionSlug: string, searchableFields: string[]): Promise<void> {
-		if (!this.supportsFts5()) return;
+		if (!this.isSearchSupported()) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
@@ -412,7 +412,7 @@ export class FTSManager {
 		afterRowid: number,
 		limit: number,
 	): Promise<number | null> {
-		if (!this.supportsFts5()) return null;
+		if (!this.isSearchSupported()) return null;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
@@ -464,7 +464,7 @@ export class FTSManager {
 	async getSearchMetadata(
 		collectionSlugs?: string[],
 	): Promise<Map<string, CollectionSearchMetadata>> {
-		if (!this.supportsFts5()) return new Map();
+		if (!this.isSearchSupported()) return new Map();
 
 		let query = this.db
 			.selectFrom("_emdash_collections as c")
@@ -605,7 +605,7 @@ export class FTSManager {
 		if (options?.tokenize !== undefined) {
 			resolveSearchTokenizer(options.tokenize);
 		}
-		if (!this.supportsFts5()) {
+		if (!this.isSearchSupported()) {
 			throw new Error(this.unsupportedMessage("enable full-text search"));
 		}
 		// Get searchable fields
@@ -639,7 +639,7 @@ export class FTSManager {
 	 * Drops the FTS table and triggers.
 	 */
 	async disableSearch(collectionSlug: string): Promise<void> {
-		if (!this.supportsFts5()) return;
+		if (!this.isSearchSupported()) return;
 		await this.dropFtsTable(collectionSlug);
 		const existing = await this.getSearchConfig(collectionSlug);
 		await this.setSearchConfig(collectionSlug, {
@@ -655,7 +655,7 @@ export class FTSManager {
 	async getIndexStats(
 		collectionSlug: string,
 	): Promise<{ indexed: number; lastRebuilt?: string } | null> {
-		if (!this.supportsFts5()) return null;
+		if (!this.isSearchSupported()) return null;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const ftsDocsizeTable = `${ftsTable}_docsize`;
@@ -689,7 +689,7 @@ export class FTSManager {
 	 * Returns true if the index was rebuilt, false if it was healthy.
 	 */
 	async verifyAndRepairIndex(collectionSlug: string): Promise<boolean> {
-		if (!this.supportsFts5()) return false;
+		if (!this.isSearchSupported()) return false;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const ftsDocsizeTable = `${ftsTable}_docsize`;
@@ -741,7 +741,7 @@ export class FTSManager {
 	 * previous process crashes.
 	 */
 	async verifyAndRepairAll(): Promise<number> {
-		if (!this.supportsFts5()) return 0;
+		if (!this.isSearchSupported()) return 0;
 
 		const collections = await this.db
 			.selectFrom("_emdash_collections")

@@ -146,7 +146,7 @@ async function searchTargets(context: ImportContext): Promise<SearchTarget[]> {
 		const config = final.searchConfig;
 		if (typeof config !== "object" || config === null || Array.isArray(config)) continue;
 		if (config.enabled !== true) continue;
-		if (!ftsManager.supportsFts5()) {
+		if (!ftsManager.isSearchSupported()) {
 			throw new TransferError(
 				"TRANSFER_IMPORT_ERROR",
 				ftsManager.unsupportedMessage("rebuild full-text search indexes"),

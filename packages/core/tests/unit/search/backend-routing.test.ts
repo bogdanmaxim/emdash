@@ -9,10 +9,7 @@ function sqliteDb(): Kysely<Database> {
 	return new Kysely<Database>({ dialect: new SqliteDialect({ database: {} as never }) });
 }
 
-function sqliteDbWithCapability(
-	capability: string,
-	reason?: string,
-): Kysely<Database> {
+function sqliteDbWithCapability(capability: string, reason?: string): Kysely<Database> {
 	class CapabilityAdapter extends SqliteAdapter {
 		readonly searchBackendCapability = capability;
 		readonly searchBackendUnsupportedReason = reason;
@@ -29,22 +26,24 @@ describe("search backend routing", () => {
 	it("routes stock SQLite adapters to the sqlite-fts5 backend", () => {
 		expect(resolveSearchBackend(sqliteDb())).toEqual({
 			kind: "sqlite-fts5",
-			supportsFts5: true,
+			supportsSearch: true,
+			searchEngine: "fts5",
 		});
 	});
 
-	it("routes adapters that declare libSQL capability to explicit unsupported backend", () => {
+	it("routes adapters that declare Turso capability to explicit unsupported backend", () => {
 		expect(
 			resolveSearchBackend(
 				sqliteDbWithCapability(
-					"libsql-unsupported",
-					"Full-text search is not available on libSQL/Turso backends in this runtime",
+					"turso-unsupported",
+					"Full-text search is not available on Turso backends in this runtime",
 				),
 			),
 		).toEqual({
-			kind: "libsql-unsupported",
-			supportsFts5: false,
-			unsupportedMessage: "Full-text search is not available on libSQL/Turso backends in this runtime",
+			kind: "turso-unsupported",
+			supportsSearch: false,
+			searchEngine: null,
+			unsupportedMessage: "Full-text search is not available on Turso backends in this runtime",
 		});
 	});
 
@@ -63,23 +62,25 @@ describe("search backend routing", () => {
 			),
 		).toEqual({
 			kind: "libsql-unsupported",
-			supportsFts5: false,
-			unsupportedMessage: "Full-text search is not available on libSQL/Turso backends in this runtime",
+			supportsSearch: false,
+			searchEngine: null,
+			unsupportedMessage: "Full-text search is not available on libSQL backends in this runtime",
 		});
 	});
 
 	it("keeps unsupported backends out of SQLite FTS paths", async () => {
 		const db = sqliteDbWithCapability(
-			"libsql-unsupported",
-			"Full-text search is not available on libSQL/Turso backends in this runtime",
+			"turso-unsupported",
+			"Full-text search is not available on Turso backends in this runtime",
 		);
 		const executeQuery = vi.spyOn(db.getExecutor(), "executeQuery");
 		const fts = new FTSManager(db);
 
 		await expect(fts.getSearchMetadata()).resolves.toEqual(new Map());
 		expect(executeQuery).not.toHaveBeenCalled();
+		expect(fts.isSearchSupported()).toBe(false);
 		await expect(fts.enableSearch("articles")).rejects.toThrow(
-			"Cannot enable full-text search: Full-text search is not available on libSQL/Turso backends in this runtime",
+			"Cannot enable full-text search: Full-text search is not available on Turso backends in this runtime",
 		);
 	});
 });
