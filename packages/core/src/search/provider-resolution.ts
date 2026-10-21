@@ -60,6 +60,8 @@ const DEFAULT_TURSO_REASON = "not supported by the Turso backend in this runtime
 const DEFAULT_LIBSQL_REASON = "not supported by the libSQL backend in this runtime";
 const DEFAULT_SQLITE_REASON = "not implemented for this SQLite-compatible backend";
 const DEFAULT_DB_PROVIDER_NOT_FOUND_REASON = "configured database search provider is not available";
+const DEFAULT_DB_ENGINE_UNSUPPORTED_REASON =
+	"configured database provider does not support the requested search engine";
 
 const DEFAULT_EXTERNAL_NOT_CONFIGURED_REASON = "provider not configured or not enabled";
 const DEFAULT_EXTERNAL_NOT_WORKING_REASON =
@@ -204,7 +206,7 @@ function resolveDatabaseProvider(
 
 	const selectedEngine = configured?.engine ?? selected.searchEngines[0];
 	if (!selectedEngine || !selected.searchEngines.includes(selectedEngine)) {
-		return backendUnsupported(selected.id, DEFAULT_EXTERNAL_NOT_WORKING_REASON);
+		return backendUnsupported(selected.id, DEFAULT_DB_ENGINE_UNSUPPORTED_REASON);
 	}
 	return availableProvider("database", selected.id, selectedEngine);
 }
