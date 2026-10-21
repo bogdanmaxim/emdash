@@ -51,7 +51,6 @@ import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { lookupContentAuthor, sendCommentNotification } from "./comments/notifications.js";
 import type { ContentFieldFilters } from "./content-list-query.js";
 import { keepKnownFields, staleStoredKeys } from "./content/known-fields.js";
-import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import {
 	enforceRuntimeMigrationPolicy,
@@ -3313,15 +3312,13 @@ export class EmDashRuntime {
 	 * defend against FTS not existing yet (pre-setup).
 	 */
 	async ensureSearchHealthy(): Promise<void> {
-		// Non-SQLite has no FTS to verify; the check is a cheap synchronous
-		// branch, no need to cache it.
-		if (!isSqlite(this._db)) return;
+		const ftsManager = new FTSManager(this._db);
+		if (!ftsManager.supportsFts5()) return;
 		try {
 			await singleFlightCached(
 				this._searchHealthCache,
 				async () => {
 					try {
-						const ftsManager = new FTSManager(this._db);
 						const repaired = await ftsManager.verifyAndRepairAll();
 						if (repaired > 0) {
 							console.log(`Repaired ${repaired} corrupted FTS index(es)`);

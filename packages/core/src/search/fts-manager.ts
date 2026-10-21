@@ -7,10 +7,16 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { isSqlite, tableExists as dialectTableExists } from "../database/dialect-helpers.js";
+import { tableExists as dialectTableExists } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { isStoragelessFieldRow } from "../schema/types.js";
+import {
+	isFts5SearchBackend,
+	resolveSearchBackendForDatabase,
+	searchUnsupportedMessage,
+	type SearchBackendResolution,
+} from "./backend.js";
 import { SEARCH_TOKENIZERS } from "./types.js";
 import type { SearchConfig, SearchTokenizer } from "./types.js";
 
@@ -76,7 +82,19 @@ function parseSearchConfig(searchConfig: string, titleField: string | null): Sea
  * for full-text search on content collections.
  */
 export class FTSManager {
-	constructor(private db: Kysely<Database>) {}
+	private readonly backend: SearchBackendResolution;
+
+	constructor(private db: Kysely<Database>) {
+		this.backend = resolveSearchBackendForDatabase(db);
+	}
+
+	supportsFts5(): boolean {
+		return isFts5SearchBackend(this.backend);
+	}
+
+	unsupportedMessage(operation = "use full-text search"): string {
+		return searchUnsupportedMessage(this.backend, operation);
+	}
 
 	/**
 	 * Validate a collection slug and its searchable field names.
@@ -132,7 +150,7 @@ export class FTSManager {
 		tokenize?: SearchTokenizer,
 	): Promise<void> {
 		const tokenizer = resolveSearchTokenizer(tokenize);
-		if (!isSqlite(this.db)) return;
+		if (!this.supportsFts5()) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
@@ -318,7 +336,7 @@ export class FTSManager {
 	 * Drop the FTS table and triggers for a collection
 	 */
 	async dropFtsTable(collectionSlug: string): Promise<void> {
-		if (!isSqlite(this.db)) return;
+		if (!this.supportsFts5()) return;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
@@ -341,7 +359,7 @@ export class FTSManager {
 		tokenize?: SearchTokenizer,
 	): Promise<void> {
 		resolveSearchTokenizer(tokenize);
-		if (!isSqlite(this.db)) return;
+		if (!this.supportsFts5()) return;
 		// Drop existing table and triggers
 		await this.dropFtsTable(collectionSlug);
 
@@ -359,7 +377,7 @@ export class FTSManager {
 	 * per isolate) converges instead of failing on the rowid constraint.
 	 */
 	async populateFromContent(collectionSlug: string, searchableFields: string[]): Promise<void> {
-		if (!isSqlite(this.db)) return;
+		if (!this.supportsFts5()) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
@@ -394,7 +412,7 @@ export class FTSManager {
 		afterRowid: number,
 		limit: number,
 	): Promise<number | null> {
-		if (!isSqlite(this.db)) return null;
+		if (!this.supportsFts5()) return null;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
@@ -446,7 +464,7 @@ export class FTSManager {
 	async getSearchMetadata(
 		collectionSlugs?: string[],
 	): Promise<Map<string, CollectionSearchMetadata>> {
-		if (!isSqlite(this.db)) return new Map();
+		if (!this.supportsFts5()) return new Map();
 
 		let query = this.db
 			.selectFrom("_emdash_collections as c")
@@ -587,8 +605,8 @@ export class FTSManager {
 		if (options?.tokenize !== undefined) {
 			resolveSearchTokenizer(options.tokenize);
 		}
-		if (!isSqlite(this.db)) {
-			throw new Error("Full-text search is only available with SQLite databases");
+		if (!this.supportsFts5()) {
+			throw new Error(this.unsupportedMessage("enable full-text search"));
 		}
 		// Get searchable fields
 		const searchableFields = await this.getSearchableFields(collectionSlug);
@@ -621,7 +639,7 @@ export class FTSManager {
 	 * Drops the FTS table and triggers.
 	 */
 	async disableSearch(collectionSlug: string): Promise<void> {
-		if (!isSqlite(this.db)) return;
+		if (!this.supportsFts5()) return;
 		await this.dropFtsTable(collectionSlug);
 		const existing = await this.getSearchConfig(collectionSlug);
 		await this.setSearchConfig(collectionSlug, {
@@ -637,7 +655,7 @@ export class FTSManager {
 	async getIndexStats(
 		collectionSlug: string,
 	): Promise<{ indexed: number; lastRebuilt?: string } | null> {
-		if (!isSqlite(this.db)) return null;
+		if (!this.supportsFts5()) return null;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const ftsDocsizeTable = `${ftsTable}_docsize`;
@@ -671,7 +689,7 @@ export class FTSManager {
 	 * Returns true if the index was rebuilt, false if it was healthy.
 	 */
 	async verifyAndRepairIndex(collectionSlug: string): Promise<boolean> {
-		if (!isSqlite(this.db)) return false;
+		if (!this.supportsFts5()) return false;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const ftsDocsizeTable = `${ftsTable}_docsize`;
@@ -723,7 +741,7 @@ export class FTSManager {
 	 * previous process crashes.
 	 */
 	async verifyAndRepairAll(): Promise<number> {
-		if (!isSqlite(this.db)) return 0;
+		if (!this.supportsFts5()) return 0;
 
 		const collections = await this.db
 			.selectFrom("_emdash_collections")
