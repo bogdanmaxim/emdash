@@ -1,0 +1,52 @@
+{
+  "runId": "2026-10-25-search-provider-feature-run-01",
+  "feature": "Search provider redesign completion",
+  "status": "active",
+  "updatedRule": "If work is not completed or the full feature is not complete as defined, EVAL restarts workflow from GOALS.",
+  "limits": {
+    "maxFailedIterations": 5,
+    "maxFailuresPerStep": 3,
+    "maxSuccessfulIterations": 8,
+    "substeps": {
+      "maxFailedIterations": 3,
+      "maxSuccessfulIterations": 5
+    }
+  },
+  "mainWorkflow": [
+    "GOALS",
+    "ANALYSIS",
+    "DESIGN",
+    "TEST PLAN",
+    "IMPLEMENTATION",
+    "TESTING",
+    "RESULT REVIEW",
+    "EVAL"
+  ],
+  "substepWorkflow": [
+    "goals",
+    "goals review",
+    "plan",
+    "plan review",
+    "work validation definition",
+    "work validation review",
+    "work",
+    "work validation",
+    "work validation result review",
+    "step result review"
+  ],
+  "evalPolicy": {
+    "restartWhenIncomplete": true,
+    "restartWhenErrorsExist": true,
+    "restartTarget": "GOALS"
+  },
+  "steps": {
+    "GOALS": { "status": "pending", "failures": 0, "successes": 0 },
+    "ANALYSIS": { "status": "pending", "failures": 0, "successes": 0 },
+    "DESIGN": { "status": "pending", "failures": 0, "successes": 0 },
+    "TEST PLAN": { "status": "pending", "failures": 0, "successes": 0 },
+    "IMPLEMENTATION": { "status": "pending", "failures": 0, "successes": 0 },
+    "TESTING": { "status": "pending", "failures": 0, "successes": 0 },
+    "RESULT REVIEW": { "status": "pending", "failures": 0, "successes": 0 },
+    "EVAL": { "status": "pending", "failures": 0, "successes": 0 }
+  }
+}
