@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { buildSerializableConfig, emdash } from "../../../../src/astro/integration/index.js";
-import { externalSearchProvider } from "../../../../src/search/providers.js";
+import {
+	externalSearchProvider,
+	externalSearchProviders,
+} from "../../../../src/search/providers.js";
 
 describe("buildSerializableConfig", () => {
 	it("passes the update-check opt-out to the runtime config", () => {
@@ -13,6 +16,17 @@ describe("buildSerializableConfig", () => {
 			id: "external-fts",
 			enabled: true,
 			engine: "fts5",
+		});
+		expect(buildSerializableConfig({ search }).search).toEqual(search);
+	});
+
+	it("passes multi-provider search selection to the runtime config", () => {
+		const search = externalSearchProviders({
+			activeProviderId: "external-b",
+			providers: [
+				{ id: "external-a", enabled: true, engine: "fts5" },
+				{ id: "external-b", enabled: true, engine: "fts5" },
+			],
 		});
 		expect(buildSerializableConfig({ search }).search).toEqual(search);
 	});

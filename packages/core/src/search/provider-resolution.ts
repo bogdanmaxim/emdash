@@ -2,9 +2,14 @@ import { SqliteAdapter, type Kysely } from "kysely";
 
 import { detectDialect } from "../database/dialect-helpers.js";
 import { DEFAULT_LIBSQL_REASON, DEFAULT_TURSO_REASON } from "./provider-reasons.js";
-import { getRegisteredSearchProvider } from "./providers.js";
+import {
+	getActiveSearchProviderId,
+	getRegisteredSearchProvider,
+	listRegisteredSearchProviders,
+} from "./providers.js";
 
 export type SearchEngine = "fts5" | "typegraph" | "postgres-lexical";
+export type SearchProviderHealth = "up" | "down" | "degraded" | "lagging" | "indexing";
 export type SearchCapability =
 	| "text"
 	| "ranking"
@@ -19,11 +24,23 @@ export interface SearchProviderSchema {
 	readonly config?: Record<string, unknown>;
 }
 
+export interface SearchProviderStatus {
+	readonly health: SearchProviderHealth;
+	readonly checkedAt?: string;
+	readonly lastSuccessAt?: string;
+	readonly lastErrorAt?: string;
+	readonly lastError?: string;
+	readonly lagMs?: number;
+}
+
 export interface SearchProviderCapability {
 	readonly id: string;
 	readonly searchEngines: readonly SearchEngine[];
 	readonly available: boolean;
+	readonly default?: boolean;
 	readonly reason?: string;
+	readonly requiresConfiguration?: boolean;
+	readonly configured?: boolean;
 	readonly schema?: SearchProviderSchema;
 	readonly capabilities?: readonly SearchCapability[];
 }
@@ -36,10 +53,13 @@ export interface SearchProviderDescriptor {
 	readonly unavailableReason?: string;
 	readonly schema?: SearchProviderSchema;
 	readonly capabilities?: readonly SearchCapability[];
+	readonly status?: SearchProviderStatus;
 }
 
 export interface SearchProviderSelection {
 	readonly provider?: SearchProviderDescriptor;
+	readonly externalProviders?: readonly SearchProviderDescriptor[];
+	readonly activeProviderId?: string;
 }
 
 interface SearchProviderCapableAdapter {
@@ -74,10 +94,16 @@ const DEFAULT_DB_UNSUPPORTED_REASON = "database backend does not support FTS";
 const DEFAULT_DB_PROVIDER_NOT_FOUND_REASON = "configured database search provider is not available";
 const DEFAULT_DB_ENGINE_UNSUPPORTED_REASON =
 	"configured database provider does not support the requested search engine";
+const DEFAULT_DB_CONFIGURATION_REQUIRED_REASON =
+	"configured database provider requires additional configuration";
 
 const DEFAULT_EXTERNAL_NOT_CONFIGURED_REASON = "provider not configured or not enabled";
 const DEFAULT_EXTERNAL_NOT_WORKING_REASON =
 	"provider does not expose an FTS engine supported by this runtime";
+const DEFAULT_EXTERNAL_MULTIPLE_ENABLED_REASON =
+	"multiple external search providers are enabled; configure an activeProviderId";
+const DEFAULT_EXTERNAL_ACTIVE_NOT_FOUND_REASON =
+	"active external search provider is not registered";
 const EXTERNAL_ENGINE_NOT_IMPLEMENTED_REASON: Record<Exclude<SearchEngine, "fts5">, string> = {
 	typegraph: "typegraph engine integration is not implemented yet in this runtime",
 	"postgres-lexical": "postgres-lexical external engine integration is not implemented yet",
@@ -239,15 +265,23 @@ function resolveDatabaseProvider(
 ): SearchBackendResolution {
 	const capabilities = normalizeAdapterCapabilities(db);
 	const configured = selection?.provider;
-	const configuredId = configured?.id;
+	const configuredId = configured?.id && configured.id !== "database" ? configured.id : undefined;
+	const defaultProvider = capabilities.find((capability) => capability.default === true);
+	const firstAvailable = capabilities.find((capability) => capability.available);
 	const selected =
 		configuredId !== undefined
 			? capabilities.find((capability) => capability.id === configuredId)
-			: capabilities[0];
+			: (defaultProvider ?? firstAvailable ?? capabilities[0]);
 	if (!selected) {
 		return backendUnsupported(
 			configuredId ?? "database",
 			normalizeReason(configured?.unavailableReason, DEFAULT_DB_PROVIDER_NOT_FOUND_REASON),
+		);
+	}
+	if (selected.requiresConfiguration && selected.configured !== true) {
+		return backendUnsupported(
+			selected.id,
+			normalizeReason(selected.reason, DEFAULT_DB_CONFIGURATION_REQUIRED_REASON),
 		);
 	}
 	if (!selected.available) {
@@ -297,6 +331,41 @@ function resolveExternalProvider(provider: SearchProviderDescriptor): SearchBack
 	return availableProvider("external", providerId, selectedEngine, resolved.capabilities);
 }
 
+function resolveExternalProviderFromSelection(
+	selection: SearchProviderSelection,
+): SearchBackendResolution | null {
+	const candidates = new Map<string, SearchProviderDescriptor>();
+	for (const provider of listRegisteredSearchProviders()) {
+		if (provider.source && provider.source !== "external") continue;
+		candidates.set(provider.id, provider);
+	}
+	for (const provider of selection.externalProviders ?? []) {
+		if (provider.source && provider.source !== "external") continue;
+		const registered = candidates.get(provider.id);
+		candidates.set(provider.id, registered ? { ...registered, ...provider } : provider);
+	}
+	if (candidates.size === 0) return null;
+
+	const activeProviderId = selection.activeProviderId ?? getActiveSearchProviderId();
+	if (activeProviderId) {
+		const activeProvider = candidates.get(activeProviderId);
+		if (!activeProvider) {
+			return providerUnavailable(activeProviderId, DEFAULT_EXTERNAL_ACTIVE_NOT_FOUND_REASON);
+		}
+		return resolveExternalProvider(activeProvider);
+	}
+
+	const enabledProviders = [...candidates.values()].filter((provider) => provider.enabled === true);
+	if (enabledProviders.length > 1) {
+		return providerUnavailable("external", DEFAULT_EXTERNAL_MULTIPLE_ENABLED_REASON);
+	}
+	if (enabledProviders.length === 1) {
+		return resolveExternalProvider(enabledProviders[0]);
+	}
+
+	return providerUnavailable("external", DEFAULT_EXTERNAL_NOT_CONFIGURED_REASON);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function resolveSearchBackend(
 	db: Kysely<any>,
@@ -305,6 +374,10 @@ export function resolveSearchBackend(
 	const provider = selection.provider;
 	if (provider?.source === "external") {
 		return resolveExternalProvider(provider);
+	}
+	const resolvedExternal = resolveExternalProviderFromSelection(selection);
+	if (resolvedExternal) {
+		return resolvedExternal;
 	}
 	return resolveDatabaseProvider(db, selection);
 }

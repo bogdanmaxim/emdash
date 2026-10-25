@@ -1,21 +1,21 @@
 # Step: GOALS
 
 ## Objective
-TBD
+Align this iteration with provider operations and selection requirements.
 
 ## Sub-step execution log
-- [ ] goals
-- [ ] goals review
-- [ ] plan
-- [ ] plan review
-- [ ] work validation definition
-- [ ] work validation review
-- [ ] work
-- [ ] work validation
-- [ ] work validation result review
-- [ ] step result review
+- [x] goals
+- [x] goals review
+- [x] plan
+- [x] plan review
+- [x] work validation definition
+- [x] work validation review
+- [x] work
+- [x] work validation
+- [x] work validation result review
+- [x] step result review
 
 ## Result review
-- Status: pending
-- Restart needed: TBD
+- Status: completed
+- Restart needed: no
 - Problems to pass to GOALS: none

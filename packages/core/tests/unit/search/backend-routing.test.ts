@@ -1,5 +1,5 @@
 import { Kysely, SqliteAdapter, SqliteDialect } from "kysely";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const virtualConfig = vi.hoisted(() => ({ default: {} as { search?: unknown } }));
 vi.mock("virtual:emdash/config", () => virtualConfig);
@@ -11,10 +11,17 @@ import type { SearchProviderCapability } from "../../../src/search/provider-reso
 import {
 	databaseSearchProvider,
 	externalSearchProvider,
+	externalSearchProviders,
+	getActiveSearchProviderId,
 	getRegisteredSearchProvider,
+	getSearchProviderStatus,
 	listRegisteredSearchProviders,
+	providerStatus,
 	registerSearchProvider,
+	setActiveSearchProvider,
+	setSearchProviderStatus,
 	unregisterSearchProvider,
+	updateRegisteredSearchProvider,
 	wrapDatabaseSearchProviderAsExternal,
 } from "../../../src/search/providers.js";
 
@@ -48,6 +55,13 @@ function sqliteDbWithProviders(providers: readonly SearchProviderCapability[]): 
 }
 
 describe("search backend routing", () => {
+	beforeEach(() => {
+		for (const provider of listRegisteredSearchProviders()) {
+			unregisterSearchProvider(provider.id);
+		}
+		setActiveSearchProvider(null);
+	});
+
 	it("routes stock SQLite adapters to the database provider", () => {
 		expect(resolveSearchBackend(sqliteDb())).toEqual({
 			providerSource: "database",
@@ -64,6 +78,32 @@ describe("search backend routing", () => {
 			{ id: "sqlite-alt", available: true, searchEngines: ["fts5"] },
 		]);
 		expect(resolveSearchBackend(db, databaseSearchProvider({ id: "sqlite-alt" }))).toEqual({
+			providerSource: "database",
+			providerId: "sqlite-alt",
+			supportsSearch: true,
+			searchEngine: "fts5",
+		});
+	});
+
+	it("treats default database selection helper as auto-select", () => {
+		const db = sqliteDbWithProviders([
+			{ id: "sqlite-default", available: true, searchEngines: ["fts5"] },
+			{ id: "sqlite-alt", available: true, searchEngines: ["fts5"] },
+		]);
+		expect(resolveSearchBackend(db, databaseSearchProvider())).toEqual({
+			providerSource: "database",
+			providerId: "sqlite-default",
+			supportsSearch: true,
+			searchEngine: "fts5",
+		});
+	});
+
+	it("prefers an explicitly marked default database provider when multiple are available", () => {
+		const db = sqliteDbWithProviders([
+			{ id: "sqlite-default", available: true, searchEngines: ["fts5"] },
+			{ id: "sqlite-alt", available: true, searchEngines: ["fts5"], default: true },
+		]);
+		expect(resolveSearchBackend(db)).toEqual({
 			providerSource: "database",
 			providerId: "sqlite-alt",
 			supportsSearch: true,
@@ -114,6 +154,74 @@ describe("search backend routing", () => {
 		).toBe(true);
 		unregisterSearchProvider("runtime-typegraph");
 		expect(getRegisteredSearchProvider("runtime-typegraph")).toBeUndefined();
+	});
+
+	it("supports runtime provider status and active-provider state updates", () => {
+		registerSearchProvider({
+			id: "runtime-typegraph",
+			source: "external",
+			enabled: false,
+			engine: "fts5",
+		});
+		expect(getActiveSearchProviderId()).toBeUndefined();
+		setActiveSearchProvider("runtime-typegraph");
+		expect(getActiveSearchProviderId()).toBe("runtime-typegraph");
+
+		updateRegisteredSearchProvider("runtime-typegraph", { enabled: true });
+		setSearchProviderStatus(
+			"runtime-typegraph",
+			providerStatus("up", {
+				checkedAt: "2026-10-25T00:00:00.000Z",
+				lastSuccessAt: "2026-10-25T00:00:00.000Z",
+			}),
+		);
+		expect(getSearchProviderStatus("runtime-typegraph")).toEqual({
+			health: "up",
+			checkedAt: "2026-10-25T00:00:00.000Z",
+			lastSuccessAt: "2026-10-25T00:00:00.000Z",
+		});
+	});
+
+	it("supports switching between multiple external providers", () => {
+		expect(
+			resolveSearchBackend(
+				sqliteDb(),
+				externalSearchProviders({
+					activeProviderId: "external-b",
+					providers: [
+						{ id: "external-a", enabled: true, engine: "fts5" },
+						{ id: "external-b", enabled: true, engine: "fts5" },
+					],
+				}),
+			),
+		).toEqual({
+			providerSource: "external",
+			providerId: "external-b",
+			supportsSearch: true,
+			searchEngine: "fts5",
+		});
+	});
+
+	it("fails closed when multiple external providers are enabled without an active provider", () => {
+		expect(
+			resolveSearchBackend(
+				sqliteDb(),
+				externalSearchProviders({
+					providers: [
+						{ id: "external-a", enabled: true, engine: "fts5" },
+						{ id: "external-b", enabled: true, engine: "fts5" },
+					],
+				}),
+			),
+		).toEqual({
+			providerSource: "external",
+			providerId: "external",
+			supportsSearch: false,
+			searchEngine: null,
+			errorCode: "PROVIDER_UNAVAILABLE",
+			unavailableReason:
+				"multiple external search providers are enabled; configure an activeProviderId",
+		});
 	});
 
 	it("routes adapters that declare Turso capability to backend-unsupported", () => {
