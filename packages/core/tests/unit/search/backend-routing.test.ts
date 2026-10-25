@@ -24,6 +24,7 @@ import {
 	updateRegisteredSearchProvider,
 	wrapDatabaseSearchProviderAsExternal,
 } from "../../../src/search/providers.js";
+import { getSearchStats, getSuggestions, searchWithDb } from "../../../src/search/query.js";
 
 function sqliteDb(): Kysely<Database> {
 	return new Kysely<Database>({ dialect: new SqliteDialect({ database: {} as never }) });
@@ -353,6 +354,15 @@ describe("search backend routing", () => {
 		await expect(fts.enableSearch("articles")).rejects.toThrow(
 			"Cannot enable full-text search: full-text search backend does not support FTS (not supported by the Turso backend in this runtime)",
 		);
+		await expect(searchWithDb(db, "search")).rejects.toThrow(
+			"Cannot search: full-text search backend does not support FTS (not supported by the Turso backend in this runtime)",
+		);
+		await expect(getSuggestions(db, "sea")).rejects.toThrow(
+			"Cannot suggest search terms: full-text search backend does not support FTS (not supported by the Turso backend in this runtime)",
+		);
+		await expect(getSearchStats(db)).rejects.toThrow(
+			"Cannot read search statistics: full-text search backend does not support FTS (not supported by the Turso backend in this runtime)",
+		);
 	});
 
 	it("keeps provider-unavailable external backends out of SQLite FTS paths", async () => {
@@ -372,6 +382,15 @@ describe("search backend routing", () => {
 		expect(fts.isSearchSupported()).toBe(false);
 		await expect(fts.enableSearch("articles")).rejects.toThrow(
 			"Cannot enable full-text search: full-text search provider is not configured or not working (provider not configured)",
+		);
+		await expect(searchWithDb(db, "search")).rejects.toThrow(
+			"Cannot search: full-text search provider is not configured or not working (provider not configured)",
+		);
+		await expect(getSuggestions(db, "sea")).rejects.toThrow(
+			"Cannot suggest search terms: full-text search provider is not configured or not working (provider not configured)",
+		);
+		await expect(getSearchStats(db)).rejects.toThrow(
+			"Cannot read search statistics: full-text search provider is not configured or not working (provider not configured)",
 		);
 	});
 

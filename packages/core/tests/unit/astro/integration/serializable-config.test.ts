@@ -30,6 +30,17 @@ describe("buildSerializableConfig", () => {
 		});
 		expect(buildSerializableConfig({ search }).search).toEqual(search);
 	});
+
+	it("rejects invalid search provider selection", () => {
+		expect(() =>
+			buildSerializableConfig({
+				search: {
+					externalProviders: [{ id: "external-a", enabled: true, engine: "fts5" }],
+					activeProviderId: "external-b",
+				},
+			}),
+		).toThrow();
+	});
 });
 
 describe("updateCheck option", () => {

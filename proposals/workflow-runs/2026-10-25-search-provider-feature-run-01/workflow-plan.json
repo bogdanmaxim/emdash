@@ -43,45 +43,45 @@
     "GOALS": {
       "status": "completed",
       "failures": 0,
-      "successes": 1
+      "successes": 2
     },
     "ANALYSIS": {
       "status": "completed",
       "failures": 0,
-      "successes": 1
+      "successes": 2
     },
     "DESIGN": {
       "status": "completed",
       "failures": 0,
-      "successes": 1
+      "successes": 2
     },
     "TEST PLAN": {
       "status": "completed",
       "failures": 0,
-      "successes": 1
+      "successes": 2
     },
     "IMPLEMENTATION": {
       "status": "completed",
       "failures": 0,
-      "successes": 1
+      "successes": 2
     },
     "TESTING": {
       "status": "completed",
       "failures": 0,
-      "successes": 1
+      "successes": 2
     },
     "RESULT REVIEW": {
       "status": "completed",
       "failures": 0,
-      "successes": 1
+      "successes": 2
     },
     "EVAL": {
       "status": "completed",
       "failures": 0,
-      "successes": 1
+      "successes": 2
     }
   },
-  "currentIteration": 2,
+  "currentIteration": 3,
   "iterationHistory": [
     {
       "iteration": 2,
@@ -92,6 +92,29 @@
         "Added provider status model and runtime state APIs (active provider and status updates).",
         "Implemented fail-closed external-provider switching/default behavior and deterministic DB default selection.",
         "Added unit tests for switching, status updates, default selection, and misconfiguration paths."
+      ],
+      "validation": {
+        "tests": "targeted search tests passed",
+        "lintQuick": "passed",
+        "lintJsonDiagnostics": 0,
+        "build": "passed",
+        "typecheck": "passed"
+      },
+      "eval": {
+        "goalsCompleted": true,
+        "errorsPresent": false,
+        "restartRequired": false
+      }
+    },
+    {
+      "iteration": 3,
+      "track": "Fail-closed query guards and search provider config validation",
+      "result": "completed",
+      "summary": [
+        "Added explicit fail-closed guards in search query entrypoints and search APIs.",
+        "Added search provider selection validation schema and safe validator helpers.",
+        "Validated runtime serialization rejects invalid provider selection combinations.",
+        "Added unit coverage for fail-closed query behavior and provider config validation."
       ],
       "validation": {
         "tests": "targeted search tests passed",

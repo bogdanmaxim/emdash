@@ -739,6 +739,8 @@ export {
 	setSearchProviderStatus,
 	unregisterSearchProvider,
 	updateRegisteredSearchProvider,
+	validateSearchProviderSelection,
+	validateSearchProviderSelectionSafe,
 	wrapDatabaseSearchProviderAsExternal,
 } from "./search/index.js";
 export type {

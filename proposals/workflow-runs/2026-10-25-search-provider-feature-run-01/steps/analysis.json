@@ -17,6 +17,6 @@
     "step result review"
   ],
   "notes": [
-    "Validated existing provider abstraction and identified missing operational management/state APIs."
+    "Confirmed query entrypoints and API routes could degrade silently without explicit unsupported-backend guards."
   ]
 }

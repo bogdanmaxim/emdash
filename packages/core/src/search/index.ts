@@ -51,6 +51,10 @@ export type {
 	SearchProviderSelection,
 	SearchProviderStatus,
 } from "./provider-resolution.js";
+export {
+	validateSearchProviderSelection,
+	validateSearchProviderSelectionSafe,
+} from "./provider-selection-schema.js";
 
 // FTS Manager
 export { FTSManager } from "./fts-manager.js";

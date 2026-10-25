@@ -17,6 +17,6 @@
     "step result review"
   ],
   "notes": [
-    "Defined provider-operations goals: multi-external management, active switching, status visibility, deterministic defaults, fail-closed behavior."
+    "Iteration 3 goal: enforce fail-closed query entry behavior and validate search provider selection config."
   ]
 }

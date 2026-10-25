@@ -17,6 +17,6 @@
     "step result review"
   ],
   "notes": [
-    "Ran targeted tests, lint quick, full build, typecheck, and lint json diagnostics checks."
+    "Executed targeted vitest suites, lint quick, full build, full typecheck, and lint-json diagnostics checks."
   ]
 }

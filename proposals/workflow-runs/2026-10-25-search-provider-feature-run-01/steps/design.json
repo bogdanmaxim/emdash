@@ -17,6 +17,6 @@
     "step result review"
   ],
   "notes": [
-    "Designed additive provider state model and selection rules with fail-closed behavior."
+    "Designed additive guard checks plus schema-based search selection validation at integration serialization boundary."
   ]
 }

@@ -1,11 +1,9 @@
 # Step: DESIGN
 
 ## Objective
-Define additive API and resolver behavior for provider operations.
+Define additive guard and schema changes with backward compatibility.
 
 ## Sub-step execution log
-- [x] goals
-- [x] goals review
 - [x] plan
 - [x] plan review
 - [x] work validation definition

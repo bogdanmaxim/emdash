@@ -1,11 +1,9 @@
 # Step: TESTING
 
 ## Objective
-Validate behavior with tests and repository checks.
+Verify targeted tests plus project checks.
 
 ## Sub-step execution log
-- [x] goals
-- [x] goals review
 - [x] plan
 - [x] plan review
 - [x] work validation definition

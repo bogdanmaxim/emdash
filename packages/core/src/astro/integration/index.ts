@@ -35,6 +35,7 @@ import {
 	parseDurationSeconds,
 	resolveRegistryConfigForSandbox,
 } from "../../registry/config.js";
+import { validateSearchProviderSelection } from "../../search/provider-selection-schema.js";
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
 import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
@@ -221,6 +222,9 @@ export function buildImageRemotePatterns(
  * @internal Exported for unit testing.
  */
 export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<string, unknown> {
+	if (resolvedConfig.search !== undefined) {
+		validateSearchProviderSelection(resolvedConfig.search);
+	}
 	return {
 		database: resolvedConfig.database,
 		search: resolvedConfig.search,

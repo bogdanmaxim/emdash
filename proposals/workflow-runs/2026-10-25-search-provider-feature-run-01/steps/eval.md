@@ -1,11 +1,9 @@
 # Step: EVAL
 
 ## Objective
-Decide whether restart is required under the workflow policy.
+Determine restart requirement based on goal completion and validation outcomes.
 
 ## Sub-step execution log
-- [x] goals
-- [x] goals review
 - [x] plan
 - [x] plan review
 - [x] work validation definition

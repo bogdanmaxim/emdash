@@ -1,11 +1,9 @@
 # Step: TEST PLAN
 
 ## Objective
-Define concrete verification coverage for the iteration changes.
+Specify targeted tests for new fail-closed and schema behavior.
 
 ## Sub-step execution log
-- [x] goals
-- [x] goals review
 - [x] plan
 - [x] plan review
 - [x] work validation definition

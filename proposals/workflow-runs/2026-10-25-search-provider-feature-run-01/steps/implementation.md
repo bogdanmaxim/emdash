@@ -1,11 +1,9 @@
 # Step: IMPLEMENTATION
 
 ## Objective
-Implement provider operations and selection behavior in core search modules.
+Apply minimal code changes for guards, schema validation, and exports.
 
 ## Sub-step execution log
-- [x] goals
-- [x] goals review
 - [x] plan
 - [x] plan review
 - [x] work validation definition

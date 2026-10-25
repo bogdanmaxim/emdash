@@ -1,11 +1,9 @@
 # Step: GOALS
 
 ## Objective
-Align this iteration with provider operations and selection requirements.
+Define this iteration objective around fail-closed query behavior and provider config validation.
 
 ## Sub-step execution log
-- [x] goals
-- [x] goals review
 - [x] plan
 - [x] plan review
 - [x] work validation definition

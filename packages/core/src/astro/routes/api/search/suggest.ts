@@ -9,7 +9,7 @@ import type { APIRoute } from "astro";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { searchSuggestQuery } from "#api/schemas.js";
-import { getSuggestions } from "#search/index.js";
+import { FTSManager, getSuggestions } from "#search/index.js";
 
 export const prerender = false;
 
@@ -36,6 +36,11 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		: undefined;
 
 	try {
+		const fts = new FTSManager(emdash.db);
+		if (!fts.isSearchSupported()) {
+			return apiError("SEARCH_UNSUPPORTED", fts.unsupportedMessage("suggest search terms"), 503);
+		}
+
 		// Verify FTS indexes are healthy on first use. See search/index.ts.
 		await emdash.ensureSearchHealthy?.();
 

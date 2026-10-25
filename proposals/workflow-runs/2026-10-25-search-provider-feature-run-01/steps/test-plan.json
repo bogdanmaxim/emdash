@@ -17,6 +17,6 @@
     "step result review"
   ],
   "notes": [
-    "Defined tests for switching, defaults, status updates, and misconfiguration handling."
+    "Planned targeted unit tests for unsupported query paths and invalid provider selection combinations."
   ]
 }

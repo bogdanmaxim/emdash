@@ -10,7 +10,7 @@ import type { APIRoute } from "astro";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { searchQuery } from "#api/schemas.js";
-import { searchWithDb } from "#search/index.js";
+import { FTSManager, searchWithDb } from "#search/index.js";
 
 export const prerender = false;
 
@@ -45,6 +45,11 @@ export const GET: APIRoute = async ({ url, locals }) => {
 			: "published";
 
 	try {
+		const fts = new FTSManager(emdash.db);
+		if (!fts.isSearchSupported()) {
+			return apiError("SEARCH_UNSUPPORTED", fts.unsupportedMessage("search"), 503);
+		}
+
 		// Verify FTS indexes are healthy on first use. At most once per worker
 		// lifetime; no-op after that. Moved off the cold-start hot path to
 		// keep anonymous public reads fast.

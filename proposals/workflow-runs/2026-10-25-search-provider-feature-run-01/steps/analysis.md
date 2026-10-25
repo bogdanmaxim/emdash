@@ -1,11 +1,9 @@
 # Step: ANALYSIS
 
 ## Objective
-Confirm gaps and constraints in current search-provider implementation.
+Confirm current unsupported-backend and config-validation gaps.
 
 ## Sub-step execution log
-- [x] goals
-- [x] goals review
 - [x] plan
 - [x] plan review
 - [x] work validation definition

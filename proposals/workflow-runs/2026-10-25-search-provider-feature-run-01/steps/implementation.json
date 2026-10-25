@@ -17,6 +17,6 @@
     "step result review"
   ],
   "notes": [
-    "Implemented provider contract/status metadata, runtime state APIs, and resolver selection logic updates."
+    "Implemented query/API fail-closed guards, provider-selection schema validators, and export integration."
   ]
 }
