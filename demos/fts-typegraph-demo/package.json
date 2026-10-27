@@ -4,10 +4,10 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "astro dev",
-		"build": "astro build",
-		"preview": "astro preview",
-		"typecheck": "pnpm --filter @emdash-cms/admin build && pnpm --filter emdash build && astro check",
+		"dev": "astro dev --root ./cms",
+		"build": "astro build --root ./cms",
+		"preview": "astro preview --root ./cms",
+		"typecheck": "pnpm --filter @emdash-cms/admin build && pnpm --filter emdash build && astro check --root ./cms",
 		"service": "node ./service/server.mjs"
 	},
 	"dependencies": {

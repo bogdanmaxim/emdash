@@ -4,13 +4,14 @@ This demo is organized into three folders:
 
 - `cms/` — Astro + EmDash CMS site
 - `plugin/` — demo search-provider selection module used by CMS config
-- `service/` — standalone Typegraph-like HTTP service (`/search`, `/suggest`, `/stats`)
+- `service/` — standalone Typegraph-like HTTP service (`/search`, `/suggest`, `/stats`, `/reindex`)
 
 ## Run
 
 ```bash
 pnpm --filter @emdash-cms/demo-fts-typegraph service
 pnpm --filter @emdash-cms/demo-fts-typegraph dev
+pnpm --filter @emdash-cms/demo-fts-typegraph typecheck
 ```
 
 Optional env:

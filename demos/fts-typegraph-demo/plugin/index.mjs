@@ -1,6 +1,5 @@
 /**
- * Demo "plugin" module that declares Typegraph provider selection config
- * for the demo CMS runtime.
+ * Demo plugin-side helper that declares Typegraph provider selection config.
  */
 export function typegraphSearchSelection(endpoint) {
 	return {

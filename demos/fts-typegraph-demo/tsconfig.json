@@ -1,9 +1,0 @@
-{
-	"extends": "astro/tsconfigs/strict",
-	"include": [
-		"cms/src/**/*",
-		"plugin/**/*",
-		"service/**/*",
-		"astro.config.mjs"
-	]
-}
