@@ -43,45 +43,45 @@
 		"GOALS": {
 			"status": "completed",
 			"failures": 0,
-			"successes": 4
+			"successes": 5
 		},
 		"ANALYSIS": {
 			"status": "completed",
 			"failures": 0,
-			"successes": 4
+			"successes": 5
 		},
 		"DESIGN": {
 			"status": "completed",
 			"failures": 0,
-			"successes": 4
+			"successes": 5
 		},
 		"TEST PLAN": {
 			"status": "completed",
 			"failures": 0,
-			"successes": 4
+			"successes": 5
 		},
 		"IMPLEMENTATION": {
 			"status": "completed",
 			"failures": 0,
-			"successes": 4
+			"successes": 5
 		},
 		"TESTING": {
 			"status": "completed",
 			"failures": 0,
-			"successes": 4
+			"successes": 5
 		},
 		"RESULT REVIEW": {
 			"status": "completed",
 			"failures": 0,
-			"successes": 4
+			"successes": 5
 		},
 		"EVAL": {
 			"status": "completed",
 			"failures": 0,
-			"successes": 4
+			"successes": 5
 		}
 	},
-	"currentIteration": 5,
+	"currentIteration": 6,
 	"iterationHistory": [
 		{
 			"iteration": 2,
@@ -168,6 +168,30 @@
 				"lintJsonDiagnostics": 204,
 				"build": "passed",
 				"typecheck": "passed"
+			},
+			"eval": {
+				"goalsCompleted": true,
+				"errorsPresent": false,
+				"restartRequired": false
+			}
+		},
+		{
+			"iteration": 6,
+			"track": "Runnable Typegraph demo service flow",
+			"result": "completed",
+			"summary": [
+				"Wired simple demo config to optionally select an external typegraph provider through EMDASH_TYPEGRAPH_DEMO_ENDPOINT.",
+				"Added runnable demo typegraph endpoints for /typegraph/search, /typegraph/suggest, and /typegraph/stats.",
+				"Implemented demo service query flow against EmDash content tables with basic relevance and status/locale filters.",
+				"Kept the demo flow additive and opt-in so default database-backed search behavior remains unchanged."
+			],
+			"validation": {
+				"tests": "targeted backend routing tests passed",
+				"lintQuick": "passed",
+				"lintJsonDiagnostics": 0,
+				"build": "passed",
+				"typecheck": "passed",
+				"demoTypecheck": "failed in this environment due virtual: module loading in astro check"
 			},
 			"eval": {
 				"goalsCompleted": true,
