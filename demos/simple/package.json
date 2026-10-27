@@ -11,7 +11,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
-    "typecheck": "astro check"
+    "typecheck": "pnpm --filter @emdash-cms/admin build && pnpm --filter emdash build && astro check"
   },
   "dependencies": {
     "@astrojs/node": "catalog:",
