@@ -60,8 +60,7 @@ export function createDialect(config: PostgresConfig): PostgresDialect {
 					{
 						id: "postgres-lexical",
 						searchEngines: ["postgres-lexical"],
-						available: false,
-						reason: "PostgreSQL lexical full-text search integration is not implemented yet",
+						available: true,
 						capabilities: ["text", "ranking", "snippet", "highlights"],
 					},
 					{

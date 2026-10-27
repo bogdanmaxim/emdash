@@ -1,4 +1,4 @@
-import { Kysely, SqliteAdapter, SqliteDialect } from "kysely";
+import { Kysely, PostgresAdapter, SqliteAdapter, SqliteDialect } from "kysely";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const virtualConfig = vi.hoisted(() => ({ default: {} as { search?: unknown } }));
@@ -55,6 +55,14 @@ function sqliteDbWithProviders(providers: readonly SearchProviderCapability[]): 
 	return new Kysely<Database>({ dialect: new ProvidersDialect({ database: {} as never }) });
 }
 
+function postgresLikeDb(): Kysely<Database> {
+	return {
+		getExecutor() {
+			return { adapter: new PostgresAdapter() };
+		},
+	} as unknown as Kysely<Database>;
+}
+
 describe("search backend routing", () => {
 	beforeEach(() => {
 		for (const provider of listRegisteredSearchProviders()) {
@@ -69,6 +77,16 @@ describe("search backend routing", () => {
 			providerId: "sqlite-fts5",
 			supportsSearch: true,
 			searchEngine: "fts5",
+			capabilities: ["text", "ranking", "snippet", "highlights"],
+		});
+	});
+
+	it("routes postgres backends to the postgres-lexical provider", () => {
+		expect(resolveSearchBackend(postgresLikeDb())).toEqual({
+			providerSource: "database",
+			providerId: "postgres-lexical",
+			supportsSearch: true,
+			searchEngine: "postgres-lexical",
 			capabilities: ["text", "ranking", "snippet", "highlights"],
 		});
 	});
