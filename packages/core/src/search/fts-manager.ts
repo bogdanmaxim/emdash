@@ -93,6 +93,10 @@ export class FTSManager {
 		return isSearchSupported(this.backend);
 	}
 
+	getBackendResolution(): SearchBackendResolution {
+		return this.backend;
+	}
+
 	unsupportedMessage(operation = "use full-text search"): string {
 		return searchUnsupportedMessage(this.backend, operation);
 	}

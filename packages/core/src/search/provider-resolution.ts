@@ -84,6 +84,8 @@ export interface SearchBackendResolution {
 	supportsSearch: boolean;
 	searchEngine: SearchEngine | null;
 	capabilities?: readonly SearchCapability[];
+	providerSchema?: SearchProviderSchema;
+	providerStatus?: SearchProviderStatus;
 	errorCode?: "BACKEND_UNSUPPORTED" | "PROVIDER_UNAVAILABLE";
 	unavailableReason?: string;
 }
@@ -104,8 +106,7 @@ const DEFAULT_EXTERNAL_MULTIPLE_ENABLED_REASON =
 	"multiple external search providers are enabled; configure an activeProviderId";
 const DEFAULT_EXTERNAL_ACTIVE_NOT_FOUND_REASON =
 	"active external search provider is not registered";
-const EXTERNAL_ENGINE_NOT_IMPLEMENTED_REASON: Record<Exclude<SearchEngine, "fts5">, string> = {
-	typegraph: "typegraph engine integration is not implemented yet in this runtime",
+const EXTERNAL_ENGINE_NOT_IMPLEMENTED_REASON: Partial<Record<SearchEngine, string>> = {
 	"postgres-lexical": "postgres-lexical external engine integration is not implemented yet",
 };
 
@@ -136,6 +137,7 @@ function availableProvider(
 	providerId: string,
 	searchEngine: SearchEngine,
 	capabilities?: readonly SearchCapability[],
+	overrides?: Pick<SearchBackendResolution, "providerSchema" | "providerStatus">,
 ): SearchBackendResolution {
 	return {
 		providerSource,
@@ -143,6 +145,8 @@ function availableProvider(
 		supportsSearch: true,
 		searchEngine,
 		capabilities,
+		providerSchema: overrides?.providerSchema,
+		providerStatus: overrides?.providerStatus,
 	};
 }
 
@@ -322,13 +326,29 @@ function resolveExternalProvider(provider: SearchProviderDescriptor): SearchBack
 		);
 	}
 	const selectedEngine = resolved.engine ?? "fts5";
+	if (selectedEngine === "typegraph") {
+		const endpoint = resolved.schema?.config?.endpoint;
+		if (typeof endpoint !== "string" || endpoint.trim().length === 0) {
+			return providerUnavailable(providerId, "typegraph provider requires schema.config.endpoint");
+		}
+		if (!URL.canParse(endpoint)) {
+			return providerUnavailable(providerId, "typegraph provider endpoint must be a valid URL");
+		}
+		return availableProvider("external", providerId, selectedEngine, resolved.capabilities, {
+			providerSchema: resolved.schema,
+			providerStatus: resolved.status,
+		});
+	}
 	if (selectedEngine !== "fts5") {
 		return providerUnavailable(
 			providerId,
 			EXTERNAL_ENGINE_NOT_IMPLEMENTED_REASON[selectedEngine] ?? DEFAULT_EXTERNAL_NOT_WORKING_REASON,
 		);
 	}
-	return availableProvider("external", providerId, selectedEngine, resolved.capabilities);
+	return availableProvider("external", providerId, selectedEngine, resolved.capabilities, {
+		providerSchema: resolved.schema,
+		providerStatus: resolved.status,
+	});
 }
 
 function resolveExternalProviderFromSelection(

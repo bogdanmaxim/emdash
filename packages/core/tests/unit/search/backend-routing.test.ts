@@ -148,6 +148,8 @@ describe("search backend routing", () => {
 			supportsSearch: true,
 			searchEngine: "fts5",
 			capabilities: ["text", "ranking", "references"],
+			providerSchema: { name: "typegraph", config: { endpoint: "http://localhost:9000" } },
+			providerStatus: undefined,
 		});
 		expect(getRegisteredSearchProvider("runtime-typegraph")).toBeDefined();
 		expect(
@@ -319,7 +321,7 @@ describe("search backend routing", () => {
 		});
 	});
 
-	it("returns provider-unavailable for unsupported non-fts5 external engines", () => {
+	it("supports external typegraph providers when endpoint is configured", () => {
 		expect(
 			resolveSearchBackend(
 				sqliteDb(),
@@ -327,6 +329,27 @@ describe("search backend routing", () => {
 					id: "external-typegraph",
 					enabled: true,
 					engine: "typegraph",
+					schema: { name: "typegraph", config: { endpoint: "http://localhost:9000" } },
+				}),
+			),
+		).toEqual({
+			providerSource: "external",
+			providerId: "external-typegraph",
+			supportsSearch: true,
+			searchEngine: "typegraph",
+			providerSchema: { name: "typegraph", config: { endpoint: "http://localhost:9000" } },
+		});
+	});
+
+	it("returns provider-unavailable when a typegraph provider is missing endpoint config", () => {
+		expect(
+			resolveSearchBackend(
+				sqliteDb(),
+				externalSearchProvider({
+					id: "external-typegraph",
+					enabled: true,
+					engine: "typegraph",
+					schema: { name: "typegraph", config: {} },
 				}),
 			),
 		).toEqual({
@@ -335,8 +358,110 @@ describe("search backend routing", () => {
 			supportsSearch: false,
 			searchEngine: null,
 			errorCode: "PROVIDER_UNAVAILABLE",
-			unavailableReason: "typegraph engine integration is not implemented yet in this runtime",
+			unavailableReason: "typegraph provider requires schema.config.endpoint",
 		});
+	});
+
+	it("routes search queries to a configured typegraph provider", async () => {
+		virtualConfig.default = {
+			search: externalSearchProvider({
+				id: "external-typegraph",
+				enabled: true,
+				engine: "typegraph",
+				schema: { name: "typegraph", config: { endpoint: "http://localhost:9000" } },
+			}),
+		};
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					items: [
+						{
+							collection: "posts",
+							id: "entry-1",
+							slug: "entry-1",
+							locale: "en",
+							title: "Entry 1",
+							score: 42,
+						},
+					],
+					nextCursor: "cursor-2",
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			),
+		);
+		const db = sqliteDb();
+		await expect(searchWithDb(db, "entry", { limit: 5 })).resolves.toEqual({
+			items: [
+				{
+					collection: "posts",
+					id: "entry-1",
+					locale: "en",
+					score: 42,
+					slug: "entry-1",
+					title: "Entry 1",
+				},
+			],
+			nextCursor: "cursor-2",
+		});
+		expect(fetchMock).toHaveBeenCalledOnce();
+		fetchMock.mockRestore();
+	});
+
+	it("routes suggestions and stats queries to a configured typegraph provider", async () => {
+		virtualConfig.default = {
+			search: externalSearchProvider({
+				id: "external-typegraph",
+				enabled: true,
+				engine: "typegraph",
+				schema: { name: "typegraph", config: { endpoint: "http://localhost:9000" } },
+			}),
+		};
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValueOnce(
+				new Response(
+					JSON.stringify({
+						items: [
+							{
+								collection: "posts",
+								id: "entry-1",
+								slug: "entry-1",
+								title: "Entry 1",
+							},
+						],
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				),
+			)
+			.mockResolvedValueOnce(
+				new Response(
+					JSON.stringify({
+						collections: {
+							posts: { indexed: 12, lastRebuilt: "2026-10-27T10:00:00.000Z" },
+						},
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				),
+			);
+		const db = sqliteDb();
+		await expect(getSuggestions(db, "entry", { limit: 3 })).resolves.toEqual([
+			{
+				collection: "posts",
+				id: "entry-1",
+				slug: "entry-1",
+				title: "Entry 1",
+			},
+		]);
+		await expect(getSearchStats(db)).resolves.toEqual({
+			collections: {
+				posts: {
+					indexed: 12,
+					lastRebuilt: "2026-10-27T10:00:00.000Z",
+				},
+			},
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		fetchMock.mockRestore();
 	});
 
 	it("keeps unsupported backends out of SQLite FTS paths", async () => {
@@ -410,6 +535,9 @@ describe("search backend routing", () => {
 			providerId: "wrapped-db-provider",
 			supportsSearch: true,
 			searchEngine: "fts5",
+			capabilities: undefined,
+			providerSchema: { name: "wrapped-db-provider", config: { url: "file:wrapped.db" } },
+			providerStatus: undefined,
 		});
 	});
 });

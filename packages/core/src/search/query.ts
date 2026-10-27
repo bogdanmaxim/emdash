@@ -15,6 +15,11 @@ import { localeMatches } from "../i18n/query.js";
 import { getDb } from "../loader.js";
 import { FTSManager } from "./fts-manager.js";
 import type { CollectionSearchMetadata } from "./fts-manager.js";
+import {
+	getTypegraphStats,
+	getTypegraphSuggestions,
+	searchWithTypegraph,
+} from "./typegraph-runtime.js";
 import type {
 	SearchOptions,
 	CollectionSearchOptions,
@@ -131,6 +136,11 @@ export async function searchWithDb(
 	if (!ftsManager.isSearchSupported()) {
 		throw new Error(ftsManager.unsupportedMessage("search"));
 	}
+	const backend = ftsManager.getBackendResolution();
+	if (backend.searchEngine === "typegraph") {
+		if (!escapeQuery(query)) return { items: [] };
+		return searchWithTypegraph(backend, query, options);
+	}
 	const limit = options.limit ?? 20;
 	const status = options.status ?? "published";
 	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
@@ -207,6 +217,14 @@ export async function searchCollection(
 	const ftsManager = new FTSManager(db);
 	if (!ftsManager.isSearchSupported()) {
 		throw new Error(ftsManager.unsupportedMessage(`search collection "${collection}"`));
+	}
+	const backend = ftsManager.getBackendResolution();
+	if (backend.searchEngine === "typegraph") {
+		if (!escapeQuery(query)) return { items: [] };
+		return searchWithTypegraph(backend, query, {
+			...options,
+			collections: [collection],
+		});
 	}
 	const limit = options.limit ?? 20;
 	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
@@ -427,6 +445,12 @@ export async function getSuggestions(
 	if (!ftsManager.isSearchSupported()) {
 		throw new Error(ftsManager.unsupportedMessage("suggest search terms"));
 	}
+	const backend = ftsManager.getBackendResolution();
+	if (backend.searchEngine === "typegraph") {
+		const prefixQuery = escapeQuery(query);
+		if (!prefixQuery) return [];
+		return getTypegraphSuggestions(backend, prefixQuery, options);
+	}
 	const limit = options.limit ?? 5;
 	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 
@@ -517,6 +541,10 @@ export async function getSearchStats(db: Kysely<Database>): Promise<SearchStats>
 	const ftsManager = new FTSManager(db);
 	if (!ftsManager.isSearchSupported()) {
 		throw new Error(ftsManager.unsupportedMessage("read search statistics"));
+	}
+	const backend = ftsManager.getBackendResolution();
+	if (backend.searchEngine === "typegraph") {
+		return getTypegraphStats(backend);
 	}
 	const collections = await getSearchableCollections(db);
 	const stats: SearchStats = { collections: {} };
