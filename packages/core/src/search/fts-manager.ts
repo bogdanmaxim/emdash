@@ -6,11 +6,18 @@
 
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
+import virtualConfig from "virtual:emdash/config";
 
-import { isSqlite, tableExists as dialectTableExists } from "../database/dialect-helpers.js";
+import { tableExists as dialectTableExists } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { isStoragelessFieldRow } from "../schema/types.js";
+import {
+	isSearchSupported,
+	resolveSearchBackend,
+	searchUnsupportedMessage,
+	type SearchBackendResolution,
+} from "./provider-resolution.js";
 import { SEARCH_TOKENIZERS } from "./types.js";
 import type { SearchConfig, SearchTokenizer } from "./types.js";
 
@@ -76,7 +83,27 @@ function parseSearchConfig(searchConfig: string, titleField: string | null): Sea
  * for full-text search on content collections.
  */
 export class FTSManager {
-	constructor(private db: Kysely<Database>) {}
+	private readonly backend: SearchBackendResolution;
+
+	constructor(private db: Kysely<Database>) {
+		this.backend = resolveSearchBackend(db, virtualConfig?.search);
+	}
+
+	isSearchSupported(): boolean {
+		return isSearchSupported(this.backend);
+	}
+
+	private usesFts5Tables(): boolean {
+		return this.backend.searchEngine === "fts5";
+	}
+
+	getBackendResolution(): SearchBackendResolution {
+		return this.backend;
+	}
+
+	unsupportedMessage(operation = "use full-text search"): string {
+		return searchUnsupportedMessage(this.backend, operation);
+	}
 
 	/**
 	 * Validate a collection slug and its searchable field names.
@@ -132,7 +159,7 @@ export class FTSManager {
 		tokenize?: SearchTokenizer,
 	): Promise<void> {
 		const tokenizer = resolveSearchTokenizer(tokenize);
-		if (!isSqlite(this.db)) return;
+		if (!this.isSearchSupported()) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
@@ -318,7 +345,7 @@ export class FTSManager {
 	 * Drop the FTS table and triggers for a collection
 	 */
 	async dropFtsTable(collectionSlug: string): Promise<void> {
-		if (!isSqlite(this.db)) return;
+		if (!this.isSearchSupported()) return;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
@@ -341,7 +368,7 @@ export class FTSManager {
 		tokenize?: SearchTokenizer,
 	): Promise<void> {
 		resolveSearchTokenizer(tokenize);
-		if (!isSqlite(this.db)) return;
+		if (!this.isSearchSupported()) return;
 		// Drop existing table and triggers
 		await this.dropFtsTable(collectionSlug);
 
@@ -359,7 +386,7 @@ export class FTSManager {
 	 * per isolate) converges instead of failing on the rowid constraint.
 	 */
 	async populateFromContent(collectionSlug: string, searchableFields: string[]): Promise<void> {
-		if (!isSqlite(this.db)) return;
+		if (!this.isSearchSupported()) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
@@ -394,7 +421,7 @@ export class FTSManager {
 		afterRowid: number,
 		limit: number,
 	): Promise<number | null> {
-		if (!isSqlite(this.db)) return null;
+		if (!this.isSearchSupported()) return null;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
@@ -446,7 +473,58 @@ export class FTSManager {
 	async getSearchMetadata(
 		collectionSlugs?: string[],
 	): Promise<Map<string, CollectionSearchMetadata>> {
-		if (!isSqlite(this.db)) return new Map();
+		if (!this.isSearchSupported()) return new Map();
+		if (!this.usesFts5Tables()) {
+			let collectionQuery = this.db
+				.selectFrom("_emdash_collections as c")
+				.select([
+					"c.id",
+					"c.slug",
+					"c.search_config",
+					"c.title_field",
+					sql<number>`EXISTS (
+						SELECT 1 FROM _emdash_fields WHERE collection_id = c.id AND slug = 'title'
+					)`.as("has_title"),
+				])
+				.where("c.search_config", "is not", null);
+
+			if (collectionSlugs?.length) {
+				collectionQuery = collectionQuery.where("c.slug", "in", collectionSlugs);
+			}
+
+			const collections = await collectionQuery.execute();
+			if (collections.length === 0) return new Map();
+			const collectionIds = collections.map((row) => row.id);
+			const searchableRows = await this.db
+				.selectFrom("_emdash_fields")
+				.select(["collection_id", "slug", "type", "validation"])
+				.where("collection_id", "in", collectionIds)
+				.where("searchable", "=", 1)
+				.execute();
+			const fieldsByCollection = new Map<string, string[]>();
+			for (const row of searchableRows) {
+				if (isStoragelessFieldRow(row)) continue;
+				const fields = fieldsByCollection.get(row.collection_id) ?? [];
+				fields.push(row.slug);
+				fieldsByCollection.set(row.collection_id, fields);
+			}
+
+			const metadata = new Map<string, CollectionSearchMetadata>();
+			for (const row of collections) {
+				const config = row.search_config
+					? parseSearchConfig(row.search_config, row.title_field)
+					: null;
+				if (!config?.enabled) continue;
+				const searchableFields = fieldsByCollection.get(row.id) ?? [];
+				if (searchableFields.length === 0) continue;
+				metadata.set(row.slug, {
+					config,
+					searchableFields,
+					hasTitle: Boolean(row.has_title),
+				});
+			}
+			return metadata;
+		}
 
 		let query = this.db
 			.selectFrom("_emdash_collections as c")
@@ -587,8 +665,8 @@ export class FTSManager {
 		if (options?.tokenize !== undefined) {
 			resolveSearchTokenizer(options.tokenize);
 		}
-		if (!isSqlite(this.db)) {
-			throw new Error("Full-text search is only available with SQLite databases");
+		if (!this.isSearchSupported()) {
+			throw new Error(this.unsupportedMessage("enable full-text search"));
 		}
 		// Get searchable fields
 		const searchableFields = await this.getSearchableFields(collectionSlug);
@@ -603,6 +681,14 @@ export class FTSManager {
 		const existing = await this.getSearchConfig(collectionSlug);
 		const weights = options?.weights ?? existing?.weights;
 		const tokenize = options?.tokenize ?? existing?.tokenize;
+		if (!this.usesFts5Tables()) {
+			await this.setSearchConfig(collectionSlug, {
+				enabled: true,
+				weights,
+				tokenize,
+			});
+			return;
+		}
 
 		// Rebuild from scratch to ensure clean state (no duplicate rows)
 		await this.rebuildIndex(collectionSlug, searchableFields, weights, tokenize);
@@ -621,9 +707,11 @@ export class FTSManager {
 	 * Drops the FTS table and triggers.
 	 */
 	async disableSearch(collectionSlug: string): Promise<void> {
-		if (!isSqlite(this.db)) return;
-		await this.dropFtsTable(collectionSlug);
+		if (!this.isSearchSupported()) return;
 		const existing = await this.getSearchConfig(collectionSlug);
+		if (this.usesFts5Tables()) {
+			await this.dropFtsTable(collectionSlug);
+		}
 		await this.setSearchConfig(collectionSlug, {
 			enabled: false,
 			weights: existing?.weights,
@@ -637,7 +725,20 @@ export class FTSManager {
 	async getIndexStats(
 		collectionSlug: string,
 	): Promise<{ indexed: number; lastRebuilt?: string } | null> {
-		if (!isSqlite(this.db)) return null;
+		if (!this.isSearchSupported()) return null;
+		if (!this.usesFts5Tables()) {
+			const config = await this.getSearchConfig(collectionSlug);
+			if (!config?.enabled) return null;
+			this.validateInputs(collectionSlug);
+			const contentTable = this.getContentTableName(collectionSlug);
+			const result = await sql<{ count: number }>`
+				SELECT COUNT(*) as count FROM ${sql.ref(contentTable)}
+				WHERE deleted_at IS NULL
+			`.execute(this.db);
+			return {
+				indexed: result.rows[0]?.count ?? 0,
+			};
+		}
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const ftsDocsizeTable = `${ftsTable}_docsize`;
@@ -671,7 +772,8 @@ export class FTSManager {
 	 * Returns true if the index was rebuilt, false if it was healthy.
 	 */
 	async verifyAndRepairIndex(collectionSlug: string): Promise<boolean> {
-		if (!isSqlite(this.db)) return false;
+		if (!this.isSearchSupported()) return false;
+		if (!this.usesFts5Tables()) return false;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const ftsDocsizeTable = `${ftsTable}_docsize`;
@@ -723,7 +825,8 @@ export class FTSManager {
 	 * previous process crashes.
 	 */
 	async verifyAndRepairAll(): Promise<number> {
-		if (!isSqlite(this.db)) return 0;
+		if (!this.isSearchSupported()) return 0;
+		if (!this.usesFts5Tables()) return 0;
 
 		const collections = await this.db
 			.selectFrom("_emdash_collections")

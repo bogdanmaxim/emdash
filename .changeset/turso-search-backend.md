@@ -2,4 +2,4 @@
 "emdash": minor
 ---
 
-Adds backend-aware full-text search support for libSQL and Turso databases while preserving SQLite FTS5 as the default implementation. Collection search selects the correct index strategy based on the active backend and returns clear errors when a target database does not support the required search capabilities.
+Adds provider-aware full-text search routing with explicit FTS provider selection. Database adapters can declare their own FTS support status and reason, users can choose either the database-provided provider or an external provider, and collection search now returns standardized errors when the selected backend/provider is unavailable.

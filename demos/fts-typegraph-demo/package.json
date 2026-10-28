@@ -1,0 +1,24 @@
+{
+	"name": "@emdash-cms/demo-fts-typegraph",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "astro dev --root ./cms",
+		"build": "astro build --root ./cms",
+		"preview": "astro preview --root ./cms",
+		"typecheck": "pnpm --filter @emdash-cms/admin build && pnpm --filter emdash build && astro check --root ./cms",
+		"service": "node ./service/server.mjs"
+	},
+	"dependencies": {
+		"@astrojs/node": "catalog:",
+		"@astrojs/react": "catalog:",
+		"astro": "catalog:",
+		"emdash": "workspace:*",
+		"react": "catalog:",
+		"react-dom": "catalog:"
+	},
+	"devDependencies": {
+		"@astrojs/check": "catalog:"
+	}
+}

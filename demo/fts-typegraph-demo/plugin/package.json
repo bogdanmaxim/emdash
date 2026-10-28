@@ -1,0 +1,7 @@
+{
+	"name": "fts-typegraph-demo-plugin",
+	"private": true,
+	"type": "module",
+	"version": "0.0.0",
+	"description": "Demo EmDash plugin forwarding CMS events to an external Typegraph FTS service"
+}

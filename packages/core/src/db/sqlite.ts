@@ -20,5 +20,23 @@ export function createDialect(config: SqliteConfig): Dialect {
 
 	const database = openNodeSqliteDatabase(filePath, { journalMode: "wal" });
 
-	return new SqliteDialect({ database });
+	return new (class extends SqliteDialect {
+		override createAdapter() {
+			const adapter = super.createAdapter();
+			Object.defineProperty(adapter, "searchProviders", {
+				value: [
+					{
+						id: "sqlite-fts5",
+						searchEngines: ["fts5"],
+						available: true,
+						capabilities: ["text", "ranking", "snippet", "highlights"],
+					},
+				],
+				enumerable: true,
+				configurable: true,
+				writable: true,
+			});
+			return adapter;
+		}
+	})({ database });
 }

@@ -8,7 +8,7 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
-import { getSearchStats } from "#search/index.js";
+import { FTSManager, getSearchStats } from "#search/index.js";
 
 export const prerender = false;
 
@@ -26,6 +26,11 @@ export const GET: APIRoute = async ({ locals }) => {
 	}
 
 	try {
+		const fts = new FTSManager(emdash.db);
+		if (!fts.isSearchSupported()) {
+			return apiError("SEARCH_UNSUPPORTED", fts.unsupportedMessage("read search statistics"), 503);
+		}
+
 		const stats = await getSearchStats(emdash.db);
 
 		return apiSuccess(stats);

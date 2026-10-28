@@ -15,6 +15,17 @@ import { localeMatches } from "../i18n/query.js";
 import { getDb } from "../loader.js";
 import { FTSManager } from "./fts-manager.js";
 import type { CollectionSearchMetadata } from "./fts-manager.js";
+import {
+	getPostgresLexicalStats,
+	getPostgresLexicalSuggestions,
+	searchCollectionWithPostgresLexical,
+	searchWithPostgresLexical,
+} from "./postgres-lexical-runtime.js";
+import {
+	getTypegraphStats,
+	getTypegraphSuggestions,
+	searchWithTypegraph,
+} from "./typegraph-runtime.js";
 import type {
 	SearchOptions,
 	CollectionSearchOptions,
@@ -128,6 +139,19 @@ export async function searchWithDb(
 	options: SearchOptions = {},
 ): Promise<SearchResponse> {
 	const ftsManager = new FTSManager(db);
+	if (!ftsManager.isSearchSupported()) {
+		throw new Error(ftsManager.unsupportedMessage("search"));
+	}
+	const backend = ftsManager.getBackendResolution();
+	if (backend.searchEngine === "typegraph") {
+		if (!escapeQuery(query)) return { items: [] };
+		return searchWithTypegraph(backend, query, options);
+	}
+	if (backend.searchEngine === "postgres-lexical") {
+		if (!escapeQuery(query)) return { items: [] };
+		const metadata = await ftsManager.getSearchMetadata(options.collections);
+		return searchWithPostgresLexical(db, query, options, metadata);
+	}
 	const limit = options.limit ?? 20;
 	const status = options.status ?? "published";
 	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
@@ -201,11 +225,27 @@ export async function searchCollection(
 	query: string,
 	options: CollectionSearchOptions = {},
 ): Promise<SearchResponse> {
+	const ftsManager = new FTSManager(db);
+	if (!ftsManager.isSearchSupported()) {
+		throw new Error(ftsManager.unsupportedMessage(`search collection "${collection}"`));
+	}
+	const backend = ftsManager.getBackendResolution();
+	if (backend.searchEngine === "typegraph") {
+		if (!escapeQuery(query)) return { items: [] };
+		return searchWithTypegraph(backend, query, {
+			...options,
+			collections: [collection],
+		});
+	}
+	if (backend.searchEngine === "postgres-lexical") {
+		if (!escapeQuery(query)) return { items: [] };
+		const metadata = (await ftsManager.getSearchMetadata([collection])).get(collection);
+		return searchCollectionWithPostgresLexical(db, collection, query, options, metadata);
+	}
 	const limit = options.limit ?? 20;
 	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
 	if (!escapeQuery(query)) return { items: [] };
 
-	const ftsManager = new FTSManager(db);
 	const metadata = (await ftsManager.getSearchMetadata([collection])).get(collection);
 	if (!metadata) return { items: [] };
 
@@ -417,6 +457,21 @@ export async function getSuggestions(
 	query: string,
 	options: SuggestOptions = {},
 ): Promise<Suggestion[]> {
+	const ftsManager = new FTSManager(db);
+	if (!ftsManager.isSearchSupported()) {
+		throw new Error(ftsManager.unsupportedMessage("suggest search terms"));
+	}
+	const backend = ftsManager.getBackendResolution();
+	if (backend.searchEngine === "typegraph") {
+		const prefixQuery = escapeQuery(query);
+		if (!prefixQuery) return [];
+		return getTypegraphSuggestions(backend, prefixQuery, options);
+	}
+	if (backend.searchEngine === "postgres-lexical") {
+		if (!escapeQuery(query)) return [];
+		const metadata = await ftsManager.getSearchMetadata(options.collections);
+		return getPostgresLexicalSuggestions(db, query, options, metadata);
+	}
 	const limit = options.limit ?? 5;
 	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 
@@ -424,7 +479,6 @@ export async function getSuggestions(
 	const prefixQuery = escapeQuery(query);
 	if (!prefixQuery) return [];
 
-	const ftsManager = new FTSManager(db);
 	const metadata = await ftsManager.getSearchMetadata(options.collections);
 	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
 	const suggestions: Suggestion[] = [];
@@ -506,6 +560,17 @@ export async function getSuggestions(
  */
 export async function getSearchStats(db: Kysely<Database>): Promise<SearchStats> {
 	const ftsManager = new FTSManager(db);
+	if (!ftsManager.isSearchSupported()) {
+		throw new Error(ftsManager.unsupportedMessage("read search statistics"));
+	}
+	const backend = ftsManager.getBackendResolution();
+	if (backend.searchEngine === "typegraph") {
+		return getTypegraphStats(backend);
+	}
+	if (backend.searchEngine === "postgres-lexical") {
+		const metadata = await ftsManager.getSearchMetadata();
+		return getPostgresLexicalStats(db, metadata);
+	}
 	const collections = await getSearchableCollections(db);
 	const stats: SearchStats = { collections: {} };
 

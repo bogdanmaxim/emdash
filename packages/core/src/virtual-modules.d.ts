@@ -11,11 +11,13 @@ declare module "virtual:emdash/config" {
 		AuthDescriptor,
 		AuthProviderDescriptor,
 		DatabaseDescriptor,
+		SearchProviderSelection,
 		StorageDescriptor,
 	} from "./index.js";
 
 	interface VirtualConfig {
 		database?: DatabaseDescriptor;
+		search?: SearchProviderSelection;
 		migrations?: import("./database/migrations/policy.js").RuntimeMigrationConfig;
 		storage?: StorageDescriptor;
 		auth?: AuthDescriptor;

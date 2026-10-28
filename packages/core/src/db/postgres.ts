@@ -52,5 +52,37 @@ export function createDialect(config: PostgresConfig): PostgresDialect {
 
 	// Fail-fast migration locking instead of Kysely's blocking advisory
 	// lock — see pg-migration-lock.ts (#1744).
-	return new FailFastPostgresDialect({ pool });
+	return new (class extends FailFastPostgresDialect {
+		override createAdapter() {
+			const adapter = super.createAdapter();
+			Object.defineProperty(adapter, "searchProviders", {
+				value: [
+					{
+						id: "postgres-lexical",
+						searchEngines: ["postgres-lexical"],
+						available: true,
+						capabilities: ["text", "ranking", "snippet", "highlights"],
+					},
+					{
+						id: "postgres-vector",
+						searchEngines: [],
+						available: false,
+						reason: "PostgreSQL vector search support is under research",
+						capabilities: ["text", "ranking", "vector"],
+					},
+					{
+						id: "postgres-graph",
+						searchEngines: [],
+						available: false,
+						reason: "PostgreSQL graph search support is under research",
+						capabilities: ["text", "ranking", "references", "graph"],
+					},
+				],
+				enumerable: true,
+				configurable: true,
+				writable: true,
+			});
+			return adapter;
+		}
+	})({ pool });
 }

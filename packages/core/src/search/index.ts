@@ -17,6 +17,44 @@ export type {
 	SearchStats,
 } from "./types.js";
 export { SEARCH_TOKENIZERS } from "./types.js";
+export {
+	searchProvider,
+	databaseSearchProvider,
+	externalSearchProvider,
+	externalSearchProviders,
+	getActiveSearchProvider,
+	getActiveSearchProviderId,
+	getRegisteredSearchProvider,
+	getSearchProviderStatus,
+	listRegisteredSearchProviders,
+	providerStatus,
+	registerSearchProvider,
+	registerSearchProviders,
+	setActiveSearchProvider,
+	setSearchProviderStatus,
+	unregisterSearchProvider,
+	updateRegisteredSearchProvider,
+	wrapDatabaseSearchProviderAsExternal,
+	type DatabaseSearchProviderConfig,
+	type ExternalSearchProviderConfig,
+	type ExternalSearchProvidersConfig,
+	type WrappedDatabaseSearchProviderConfig,
+} from "./providers.js";
+export type {
+	SearchBackendResolution,
+	SearchCapability,
+	SearchEngine,
+	SearchProviderHealth,
+	SearchProviderCapability,
+	SearchProviderDescriptor,
+	SearchProviderSchema,
+	SearchProviderSelection,
+	SearchProviderStatus,
+} from "./provider-resolution.js";
+export {
+	validateSearchProviderSelection,
+	validateSearchProviderSelectionSafe,
+} from "./provider-selection-schema.js";
 
 // FTS Manager
 export { FTSManager } from "./fts-manager.js";
